@@ -10,7 +10,7 @@ from nio import (AsyncClient, ClientConfig, DevicesError, Event,InviteEvent, Log
                  LocalProtocolError, MatrixRoom, MatrixUser, RoomMessageText,
                  crypto, exceptions, RoomSendResponse)
 
-STORE_FOLDER = "nio_store/"
+STORE_FOLDER = "storage/"
 
 SESSION_DETAILS_FILE = STORE_FOLDER + "/manual_encrypted_verify.json"
 
@@ -99,8 +99,7 @@ class CatBotClient(AsyncClient):
             )
         except exceptions.OlmUnverifiedDeviceError as err:
             print("These are all known devices:")
-            device_store: crypto.DeviceStore = device_store
-            [print(f"\t{device.user_id}\t {device.device_id}\t {device.trust_state}\t  {device.display_name}") for device in device_store]
+            [print(f"\t{device.user_id}\t {device.device_id}\t {device.trust_state}\t  {device.display_name}") for device in self.device_store]
             sys.exit(1)
 
     @staticmethod
