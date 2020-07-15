@@ -1,0 +1,5 @@
+nio_store/
+storage/
+*.pyc
+catbot.cfg
+get-matrix-token.sh
