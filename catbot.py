@@ -15,8 +15,8 @@ STORE_FOLDER = "nio_store/"
 SESSION_DETAILS_FILE = STORE_FOLDER + "/manual_encrypted_verify.json"
 
 class CatBotClient(AsyncClient):
-    def __init__(self, homeserver, user='', device_id='', store_path='', matrix_config=None, ssl=None, proxy=None, bot_config=None):
-        super().__init__(homeserver, user=user, device_id=device_id, store_path=store_path, config=matrix_config, ssl=ssl, proxy=proxy)
+    def __init__(self, homeserver, user='', device_id='', store_path='', config=None, ssl=None, proxy=None, bot_config=None):
+        super().__init__(homeserver, user=user, device_id=device_id, store_path=store_path, config=config, ssl=ssl, proxy=proxy)
         self.bot_config = bot_config
 
         if store_path and not os.path.isdir(store_path):
@@ -148,7 +148,7 @@ async def main():
         bot_config.get("catbot", "base_url"),
         bot_config.get("catbot", "username"),
         store_path=STORE_FOLDER,
-        matrix_config=matrix_config,
+        config=matrix_config,
         bot_config=bot_config
 #        ssl=False,
 #        proxy="http://localhost:8080",
