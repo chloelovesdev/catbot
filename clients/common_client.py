@@ -81,6 +81,9 @@ class CommonClient(AsyncClient):
             await self.send_hello_world()
 
     async def send_hello_world(self):
+        print("These are all known devices:")
+        [print(f"\t{device.user_id}\t {device.device_id}\t {device.trust_state}\t  {device.display_name}") for device in self.device_store]
+ 
         try:
             await self.room_send(
                 room_id=self.bot_config.server.channel,
@@ -91,8 +94,7 @@ class CommonClient(AsyncClient):
                 }
             )
         except exceptions.OlmUnverifiedDeviceError as err:
-            print("These are all known devices:")
-            [print(f"\t{device.user_id}\t {device.device_id}\t {device.trust_state}\t  {device.display_name}") for device in self.device_store]
+            print("error all abort")
             sys.exit(1)
 
     def save_config(self):
