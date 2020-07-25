@@ -10,11 +10,13 @@ from nio import (AsyncClient, ClientConfig, DevicesError, Event,InviteEvent, Log
                  LocalProtocolError, MatrixRoom, MatrixUser, RoomMessageText,
                  crypto, exceptions, RoomSendResponse)
 
+from clients import MainClient
+
 STORE_FOLDER = "storage/"
 
 SESSION_DETAILS_FILE = STORE_FOLDER + "/manual_encrypted_verify.json"
 
-async def client_task(client: CatBotClient) -> None:
+async def run_client(client: CommonClient) -> None:
     await client.login()
 
     async def after_first_sync():
@@ -29,7 +31,7 @@ async def client_task(client: CatBotClient) -> None:
     after_first_sync_task = asyncio.ensure_future(after_first_sync())
     sync_forever_task = asyncio.ensure_future(client.sync_forever(30000, full_state=True))
 
-    return asyncio.gather(
+    await asyncio.gather(
         # The order here IS significant! You have to register the task to trust
         # devices FIRST since it awaits the first sync
         after_first_sync_task,
@@ -37,20 +39,14 @@ async def client_task(client: CatBotClient) -> None:
     )
 
 async def main():
-    matrix_config = ClientConfig(store_sync_tokens=True)
+    global_store_path = os.path.realpath("storage/") #TODO accept command line args!
+
     main_client = MainClient(
-        bot_config.get("catbot", "base_url"),
-        bot_config.get("catbot", "username"),
-        store_path=STORE_FOLDER,
-        config=matrix_config,
+        global_store_path
     )
 
     try:
-        #await run_client(client)
-        client_task = asyncio.create_task(
-            client_task(main_client)
-        )
-        await client_methods_tasked
+        await run_client(client)
     except (asyncio.CancelledError, KeyboardInterrupt):
         await client.close()
 
