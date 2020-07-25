@@ -3,3 +3,5 @@ storage/
 *.pyc
 catbot.cfg
 get-matrix-token.sh
+create_main_config.py
+create*config*

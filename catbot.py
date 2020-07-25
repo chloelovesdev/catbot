@@ -10,7 +10,8 @@ from nio import (AsyncClient, ClientConfig, DevicesError, Event,InviteEvent, Log
                  LocalProtocolError, MatrixRoom, MatrixUser, RoomMessageText,
                  crypto, exceptions, RoomSendResponse)
 
-from clients import MainClient
+from clients.main_client import MainClient
+from clients.common_client import CommonClient
 
 STORE_FOLDER = "storage/"
 
@@ -23,6 +24,8 @@ async def run_client(client: CommonClient) -> None:
         print("Awaiting sync")
         await client.synced.wait()
 
+        if isinstance(client, MainClient):
+            client.after_first_sync()
 #        client.trust_devices(BOB_ID, BOB_DEVICE_IDS)
 #        client.trust_devices(ALICE_USER_ID)
 
@@ -41,9 +44,16 @@ async def run_client(client: CommonClient) -> None:
 async def main():
     global_store_path = os.path.realpath("storage/") #TODO accept command line args!
 
-    main_client = MainClient(
-        global_store_path
-    )
+    if not os.path.isdir(global_store_path):
+        os.mkdir(global_store_path)
+
+    main_mode = True
+    client = None
+
+    if main_mode:
+        client = MainClient(
+            global_store_path
+        )
 
     try:
         await run_client(client)
