@@ -23,6 +23,9 @@ class CommonClient(AsyncClient):
         if bot_id == "":
             raise Exception("bot_id required")
 
+        self.global_store_path = global_store_path
+        self.bot_id = bot_id
+
         store_path = os.path.join(global_store_path, bot_id)
 
         if not os.path.isdir(store_path):
@@ -37,7 +40,6 @@ class CommonClient(AsyncClient):
         super().__init__(self.bot_config.server.url, user=self.bot_config.server.user_id,
                     device_id=self.bot_config.server.device_id, store_path=store_path, config=matrix_config, ssl=True)
 
-        #self.add_event_callback(self.cb_autojoin_room, InviteEvent)
         self.add_event_callback(self.cb_print_messages, RoomMessageText)
 
     async def login(self) -> None:
@@ -66,31 +68,28 @@ class CommonClient(AsyncClient):
             print(f"Logged in using stored credentials: {self.user_id} on {self.device_id}")
             self.load_store()
 
-    # def cb_autojoin_room(self, room: MatrixRoom, event: InviteEvent):
-    #     self.join(room.room_id)
-    #     room = self.rooms[ROOM_ID]
-    #     print(f"Room {room.name} is encrypted: {room.encrypted}" )
-
+    #debug print messages
+    #TODO: REMOVE? 
     async def cb_print_messages(self, room: MatrixRoom, event: RoomMessageText):
         if event.decrypted:
             encrypted_symbol = "🛡 "
         else:
             encrypted_symbol = "⚠️ "
         print(f"{room.display_name} |{encrypted_symbol}| {room.user_name(event.sender)}: {event.body}")
+        if "!devices" in event.body.lower() and not "chloebot" in event.sender:
+            print("These are all known devices:")
+            [print(f"\t{device.user_id}\t {device.device_id}\t {device.trust_state}\t  {device.display_name}") for device in self.device_store]
         if "meow" in event.body.lower() and not "chloebot" in event.sender:
-            await self.send_hello_world()
+            await self.send_text_to_room("meow")
 
-    async def send_hello_world(self):
-        print("These are all known devices:")
-        [print(f"\t{device.user_id}\t {device.device_id}\t {device.trust_state}\t  {device.display_name}") for device in self.device_store]
- 
+    async def send_text_to_room(self, message):
         try:
             await self.room_send(
                 room_id=self.bot_config.server.channel,
                 message_type="m.room.message",
                 content = {
                     "msgtype": "m.text",
-                    "body": "meow"
+                    "body": message
                 }
             )
         except exceptions.OlmUnverifiedDeviceError as err:
