@@ -5,12 +5,18 @@ import sys
 import json
 import random
 import string
+import sys
+import subprocess
+import threading
+import select
 
 from typing import Optional
 
-from nio import (AsyncClient, ClientConfig, DevicesError, Event, InviteEvent, LoginResponse,
+from nio import (AsyncClient, ClientConfig, DevicesError, Event, InviteNameEvent, LoginResponse,
                  LocalProtocolError, MatrixRoom, MatrixUser, RoomMessageText, SyncResponse,
                  crypto, exceptions, RoomSendResponse)
+
+from asyncio.exceptions import TimeoutError
 
 from .common_client import CommonClient
 
@@ -21,15 +27,26 @@ class MainClient(CommonClient):
         super().__init__(global_store_path=global_store_path, bot_id="MAIN")
 
         self.entry_point_file = entry_point_file
-        self.add_event_callback(self.cb_try_setup_bot, InviteEvent)
+        self.add_event_callback(self.cb_try_setup_bot, InviteNameEvent)
+        self.add_response_callback(self.cb_synced, SyncResponse)
 
-    async def setup_cached_bots(self):
+    async def cb_synced(self, response):
+        print(f"Main client synced, token: {response.next_batch}")
+
+    def setup_cached_bots(self):
+        tasks = []
+
         if self.bot_config.bots:
             bots_as_dict = self.bot_config.bots.to_dict() #TODO lookup how to do this
             for bot_id in bots_as_dict:
-                await self.setup_bot(bot_id)
+                task = self.setup_bot(bot_id)
+                if task:
+                    tasks += [task]
 
-    async def cb_try_setup_bot(self, room: MatrixRoom, event: InviteEvent):
+        return tasks
+
+    async def cb_try_setup_bot(self, room: MatrixRoom, event: InviteNameEvent):
+        print("Trying to set up bot, someone gave me an invite!")
         print(room)
         print(event)
 
@@ -37,11 +54,12 @@ class MainClient(CommonClient):
             self.send_text_to_room("bot already exists with room id and invite given(?)")
             return
         else:
-            await self.setup_bot(None, event=event, room=room)
+            loop = asyncio.get_event_loop()
+            loop.create_task(self.setup_bot(None, room=room))
 
     def create_bot_config(self, bot_id: str, room_id: str):
         os.mkdir(os.path.join(self.global_store_path, bot_id))
-        
+
         config_path = os.path.join(self.global_store_path, bot_id, "config.json")
 
         # give our config data
@@ -62,49 +80,80 @@ class MainClient(CommonClient):
         config_file.write(config_as_json)
         config_file.close()
 
-    async def setup_bot(self, bot_id: str, room: MatrixRoom = None, event: InviteEvent = None):
-        if bot_id == None and not room == None and not event == None:
-            bot_id = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+    def setup_bot(self, bot_id: str, room: MatrixRoom = None):
 
-            self.create_bot_config(bot_id, room.room_id)
 
-            # update the main clients bot config with the new information
-            if self.bot_config.bots == None:
-                self.bot_config.add("bots", {})
-            self.bot_config.add(f"bots.{bot_id}", {})
-            self.bot_config.add(f"bots.{bot_id}.room_id", room.room_id)
-            self.save_config()
+        if bot_id == None and not room == None:
+            updated_existing_bot = False
+
+            # if a bot with the room id exists, make it active
+            bots_as_dict = self.bot_config.bots.to_dict()
+            for bot_id, bot_data in bots_as_dict.items():
+                if bot_data['room_id'] == room.room_id:
+                    self.bot_config.update(f"bots.{bot_id}.active", True)
+                    self.save_config()
+                    updated_existing_bot = True
+
+            if not updated_existing_bot:
+                bot_id = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
+
+                self.create_bot_config(bot_id, room.room_id)
+
+                # update the main clients bot config with the new information
+                if self.bot_config.bots == None:
+                    self.bot_config.add("bots", {})
+                self.bot_config.add(f"bots.{bot_id}", {})
+                self.bot_config.add(f"bots.{bot_id}.room_id", room.room_id)
+                self.bot_config.add(f"bots.{bot_id}.active", True)
+                self.save_config()
         elif bot_id == None:
             raise Exception("None bot_id but no event parameters")
 
+        bots_as_dict = self.bot_config.bots.to_dict()
+        if bots_as_dict[bot_id]['active'] == False:
+            print("Not setting up bot " + bot_id + ". Bot is inactive.")
+            return None
+
         print("Setup bot: " + bot_id)
 
-        # TODO: double check bot_id is not lethal parameter
-        proc = await asyncio.create_subprocess_exec(self.entry_point_file, bot_id,
-                                    stdout=asyncio.subprocess.PIPE,
-                                    stderr=asyncio.subprocess.PIPE)
-        print(proc)
-                                    
-        async def read_proc_output_task(proc, std_to_read_from, timeout):
-            while True:
-                try:
-                    line = await asyncio.wait_for(std_to_read_from.readline(), timeout)
-                except asyncio.TimeoutError:
-                    break
+        # read the process stdout and stderr concurrently always
+        # demarcate with [BOT_ID]
+        async def read_proc_output_task(proc, std, std_to_read_from, timeout):
+            async def read_and_print(std, std_to_read_from):
+                line = await std_to_read_from.readline()
+                # line = line.decode("ascii").rstrip()
+                if line:
+                    print(f"[{bot_id}] [{std}] {line}")
+                    if line.rstrip() == b"DELETEBOT":
+                        print(f"Deleting bot on {std} with ID " + bot_id)
+                        if std == "stdout":
+                            self.bot_config.update(f"bots.{bot_id}.active", False) # bot is disabled
+                            self.save_config()
+                        return True
+                    else:
+                        return False
                 else:
-                    if not line: # EOF
-                        break
-                    else: 
-                        print(f"[{bot_id}] {line}")
-                #proc.kill() # timeout or some criterium is not satisfied
-                #break
-            print("timed out?")
+                    return False
 
-        await asyncio.gather(
-            read_proc_output_task(proc, proc.stdout, 10),
-            read_proc_output_task(proc, proc.stderr, 10)
-        )
-        
+            while True:
+                is_terminated = await read_and_print(std, std_to_read_from)
+
+                if is_terminated:
+                    break
+            print("read_and_print loop terminated")
+
+        async def start_and_listen_proc():
+            proc = await asyncio.create_subprocess_exec(sys.executable, "-u", self.entry_point_file, bot_id, 
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE)
+            await asyncio.gather(
+                asyncio.ensure_future(read_proc_output_task(proc, "stdout", proc.stdout, 10)),
+                asyncio.ensure_future(read_proc_output_task(proc, "stderr", proc.stderr, 10))
+            )
+
+        print("Before gather")
+        return start_and_listen_proc()
+
     def check_room_with_bot_exists(self, room: MatrixRoom):
         if self.bot_config.bots and isinstance(self.bot_config.bots, dict):
             bots_as_dict = self.bot_config.bots.to_dict() #TODO lookup how to do this
@@ -115,12 +164,6 @@ class MainClient(CommonClient):
 
         return False
 
-    def after_first_sync(self):
-        self.__only_trust_devices(self.bot_config.owner.session_ids)
-
-    def __only_trust_devices(self, device_list: Optional[str] = None) -> None:
-        for olm_device in self.device_store:
-            if olm_device.device_id in device_list:
-                self.verify_device(olm_device)
-            else:
-                self.blacklist_device(olm_device)
+    async def after_first_sync(self):
+        self.only_trust_devices(self.bot_config.owner.session_ids)
+        await self.send_text_to_room("Hello, world!")

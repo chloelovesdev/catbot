@@ -19,7 +19,7 @@ def config_validation_steps(builder):
     builder.validate_field_type('server.device_id', str)
 
 class CommonClient(AsyncClient):
-    def __init__(self, global_store_path='', bot_id=""):
+    def __init__(self, global_store_path='', bot_id="", proxy=None):
         if bot_id == "":
             raise Exception("bot_id required")
 
@@ -38,7 +38,7 @@ class CommonClient(AsyncClient):
         matrix_config = ClientConfig(store_sync_tokens=True)
 
         super().__init__(self.bot_config.server.url, user=self.bot_config.server.user_id,
-                    device_id=self.bot_config.server.device_id, store_path=store_path, config=matrix_config, ssl=True)
+                    device_id=self.bot_config.server.device_id, store_path=store_path, config=matrix_config, ssl=True, proxy=proxy)
 
         self.add_event_callback(self.cb_print_messages, RoomMessageText)
 
@@ -53,7 +53,7 @@ class CommonClient(AsyncClient):
         # We didn't restore a previous session, so we'll log in with a password
         if not self.user_id or not self.access_token or not self.device_id:
             # this calls the login method defined in AsyncClient from nio
-            resp = await asyncio.wait_for(super().login(self.bot_config.server.password), timeout=10)
+            resp = await asyncio.wait_for(super().login(self.bot_config.server.password), timeout=60)
 
             if isinstance(resp, LoginResponse):
                 print("Logged in using a password; saving details to disk")
@@ -71,6 +71,11 @@ class CommonClient(AsyncClient):
     #debug print messages
     #TODO: REMOVE? 
     async def cb_print_messages(self, room: MatrixRoom, event: RoomMessageText):
+        # dont print anything thats not from the bot's channel
+        if room.room_id != self.bot_config.server.channel:
+            # print(room.room_id)
+            return
+
         if event.decrypted:
             encrypted_symbol = "🛡 "
         else:
@@ -83,6 +88,9 @@ class CommonClient(AsyncClient):
             await self.send_text_to_room("meow")
 
     async def send_text_to_room(self, message):
+        # trust the devices from the config every time we send, to prevent olm errors
+        self.only_trust_devices(self.bot_config.owner.session_ids)
+
         try:
             await self.room_send(
                 room_id=self.bot_config.server.channel,
@@ -93,8 +101,16 @@ class CommonClient(AsyncClient):
                 }
             )
         except exceptions.OlmUnverifiedDeviceError as err:
-            print("error all abort")
-            sys.exit(1)
+            print("olm error")
+
+            #sys.exit(1)
+
+    def only_trust_devices(self, device_list: Optional[str] = None) -> None:
+        for olm_device in self.device_store:
+            if device_list == None or olm_device.device_id in device_list:
+                self.verify_device(olm_device)
+            else:
+                self.blacklist_device(olm_device)
 
     def save_config(self):
         config_as_json = json.dumps(self.bot_config.to_dict())
@@ -103,3 +119,9 @@ class CommonClient(AsyncClient):
         config_file = open(self.config_path, "w")
         config_file.write(config_as_json)
         config_file.close()
+
+    def print(self, text):
+        print(f"[{self.bot_id}] {text}")
+
+    async def after_first_sync(self):
+        pass

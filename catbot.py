@@ -26,22 +26,22 @@ async def run_client(client: CommonClient) -> None:
         print("Awaiting sync")
         await client.synced.wait()
 
-        if isinstance(client, MainClient):
-            client.after_first_sync()
+        await client.after_first_sync()
 #        client.trust_devices(BOB_ID, BOB_DEVICE_IDS)
 
 #        client.trust_devices(ALICE_USER_ID)
-        await client.send_text_to_room("Hello, world!")
 
     after_first_sync_task = asyncio.ensure_future(after_first_sync())
     sync_forever_task = asyncio.ensure_future(client.sync_forever(30000, full_state=True))
     
     if isinstance(client, MainClient):
+        setup_cached_bots_list = client.setup_cached_bots()
+        
         await asyncio.gather(
             # The order here IS significant! You have to register the task to trust
             # devices FIRST since it awaits the first sync
             after_first_sync_task,
-            client.setup_cached_bots(),
+            *setup_cached_bots_list,
             sync_forever_task
         )
     else:
@@ -59,11 +59,12 @@ async def main():
         os.mkdir(global_store_path)
 
     parser = argparse.ArgumentParser(description='A matrix-nio bot with working E2EE.')
-    parser.add_argument('bot_id', metavar='STR', type=str,
-                       help='the bot id')
+    parser.add_argument('bot_id', metavar='BOT_ID', type=str,
+                       help='the bot id (use MAIN to start catbot in main mode)')
+    parser.add_argument('--room-id', dest='room_id', metavar='ROOM_ID', type=str,
+                       help='the room id to join', required=False)
 
     args = parser.parse_args()
-
     main_mode = args.bot_id == "MAIN"
     client = None
 
@@ -77,7 +78,6 @@ async def main():
             global_store_path,
             args.bot_id
         )
-
 
     try:
         await run_client(client)
