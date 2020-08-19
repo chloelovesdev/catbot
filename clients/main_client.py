@@ -53,7 +53,7 @@ class MainClient(CommonClient):
         print(event)
 
         if self.check_room_with_bot_exists(room):
-            self.send_text_to_room("bot already exists with room id and invite given(?)")
+            await self.send_text_to_room("bot already exists with room id and invite given(?)")
             return
         else:
             loop = asyncio.get_event_loop()
@@ -161,7 +161,7 @@ class MainClient(CommonClient):
             bots_as_dict = self.bot_config.bots.to_dict() #TODO lookup how to do this
 
             for bot_id in bots_as_dict:
-                if bots_as_dict[bot_id]['room_id'] == room.room_id:
+                if bots_as_dict[bot_id]['room_id'] == room.room_id and bots_as_dict[bot_id]['active']:
                     return True
 
         return False

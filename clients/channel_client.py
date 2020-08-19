@@ -20,6 +20,7 @@ class ChannelClient(CommonClient):
         print("Channel client woop")
 
     async def cb_channelclient_synced(self, response):
+        print(response)
         # find the latest state event
         # hack around RoomMemberEvent not being given to the channel_client for some reason
         # TODO: fix this mess!
@@ -32,12 +33,19 @@ class ChannelClient(CommonClient):
                             state_latest_timestamp = event.source['origin_server_ts']
             
             return (state, state_latest_timestamp)
-            
+
         state = "join"
         state_latest_timestamp = 0
         
         state, state_latest_timestamp = check_rooms_in_sync(state, state_latest_timestamp, response.rooms.join)
         state, state_latest_timestamp = check_rooms_in_sync(state, state_latest_timestamp, response.rooms.leave)
+        for room_id, room_info in response.rooms.invite.items():
+            if room_id == self.bot_config.server.channel:
+                print(room_info)
+                for event in room_info.invite_state:
+                    if isinstance(event, InviteMemberEvent) and event.state_key == self.bot_config.server.user_id and event.source['origin_server_ts'] > state_latest_timestamp:
+                        state = event.content['membership']
+                        state_latest_timestamp = event.source['origin_server_ts']
 
         if state == "leave" or state == "ban":
             await self.delete_self()
