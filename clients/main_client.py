@@ -27,11 +27,8 @@ class MainClient(CommonClient):
         super().__init__(global_store_path=global_store_path, bot_id="MAIN")
 
         self.entry_point_file = entry_point_file
-        self.add_event_callback(self.cb_try_setup_bot, InviteNameEvent)
-        self.add_response_callback(self.cb_synced, SyncResponse)
 
-    async def cb_synced(self, response):
-        print(f"Main client synced, token: {response.next_batch}")
+        self.add_event_callback(self.cb_try_setup_bot, InviteNameEvent)
 
     def setup_cached_bots(self):
         tasks = []
@@ -46,6 +43,11 @@ class MainClient(CommonClient):
         return tasks
 
     async def cb_try_setup_bot(self, room: MatrixRoom, event: InviteNameEvent):
+        if room.room_id == self.bot_config.server.channel:
+            print("Invited to bot's main room, joining!")
+            await self.join(room.room_id)
+            return
+
         print("Trying to set up bot, someone gave me an invite!")
         print(room)
         print(event)
@@ -81,18 +83,17 @@ class MainClient(CommonClient):
         config_file.close()
 
     def setup_bot(self, bot_id: str, room: MatrixRoom = None):
-
-
         if bot_id == None and not room == None:
             updated_existing_bot = False
 
             # if a bot with the room id exists, make it active
-            bots_as_dict = self.bot_config.bots.to_dict()
-            for bot_id, bot_data in bots_as_dict.items():
-                if bot_data['room_id'] == room.room_id:
-                    self.bot_config.update(f"bots.{bot_id}.active", True)
-                    self.save_config()
-                    updated_existing_bot = True
+            if self.bot_config.bots:
+                bots_as_dict = self.bot_config.bots.to_dict()
+                for bot_id, bot_data in bots_as_dict.items():
+                    if bot_data['room_id'] == room.room_id:
+                        self.bot_config.update(f"bots.{bot_id}.active", True)
+                        self.save_config()
+                        updated_existing_bot = True
 
             if not updated_existing_bot:
                 bot_id = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
@@ -140,6 +141,7 @@ class MainClient(CommonClient):
 
                 if is_terminated:
                     break
+
             print("read_and_print loop terminated")
 
         async def start_and_listen_proc():
@@ -155,7 +157,7 @@ class MainClient(CommonClient):
         return start_and_listen_proc()
 
     def check_room_with_bot_exists(self, room: MatrixRoom):
-        if self.bot_config.bots and isinstance(self.bot_config.bots, dict):
+        if self.bot_config.bots:
             bots_as_dict = self.bot_config.bots.to_dict() #TODO lookup how to do this
 
             for bot_id in bots_as_dict:
@@ -164,6 +166,6 @@ class MainClient(CommonClient):
 
         return False
 
-    async def after_first_sync(self):
-        self.only_trust_devices(self.bot_config.owner.session_ids)
+    async def room_setup(self):
+        print("We are setting up!")
         await self.send_text_to_room("Hello, world!")

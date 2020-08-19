@@ -7,7 +7,7 @@ import json
 from typing import Optional
 
 from nio import (AsyncClient, ClientConfig, DevicesError, Event,InviteEvent, LoginResponse,
-                 LocalProtocolError, MatrixRoom, MatrixUser, RoomMessageText,
+                 LocalProtocolError, MatrixRoom, MatrixUser, RoomMessageText, InviteMemberEvent, SyncResponse,
                  crypto, exceptions, RoomSendResponse)
 
 from python_json_config import ConfigBuilder
@@ -33,6 +33,8 @@ class CommonClient(AsyncClient):
 
         builder = ConfigBuilder()
         self.config_path = os.path.join(store_path, "config.json")
+        if not os.path.exists(self.config_path):
+            raise Exception(f"Config {self.config_path} does not exist.")
         self.bot_config = builder.parse_config(self.config_path)
 
         matrix_config = ClientConfig(store_sync_tokens=True)
@@ -40,7 +42,16 @@ class CommonClient(AsyncClient):
         super().__init__(self.bot_config.server.url, user=self.bot_config.server.user_id,
                     device_id=self.bot_config.server.device_id, store_path=store_path, config=matrix_config, ssl=True, proxy=proxy)
 
+        self.bot_inviter_id = None
+        self.delay_setup = False
+        self.delay_setup_for_keys = False
+        self.keys_sent = False
+        self.setup_delayed_for = 0 # syncs the setup has been delayed for
+
         self.add_event_callback(self.cb_print_messages, RoomMessageText)
+        self.add_event_callback(self.cb_room_setup, InviteMemberEvent)
+
+        self.add_response_callback(self.cb_synced, SyncResponse)
 
     async def login(self) -> None:
         self.access_token = self.bot_config.server.access_token
@@ -68,6 +79,35 @@ class CommonClient(AsyncClient):
             print(f"Logged in using stored credentials: {self.user_id} on {self.device_id}")
             self.load_store()
 
+    async def cb_synced(self, response):
+        #print(f"Synced: {response}")
+        if self.delay_setup and self.bot_config.server.channel in self.rooms:
+            room = self.rooms[self.bot_config.server.channel]
+            if room.encrypted:
+                print("This room is encrypted and we must wait for another sync which will contain the keys")
+                self.delay_setup = False
+                self.delay_setup_for_keys = True
+                self.setup_delayed_for = 0
+                return
+
+            print("cb_synced calling room_setup")
+            await self.room_setup()
+            self.delay_setup = False
+        elif self.delay_setup:
+            self.setup_delayed_for += 1
+
+        if self.delay_setup_for_keys:
+            print("Delay setup for keys")
+            for olm_device in self.device_store:
+                print("Device with key found")
+                self.delay_setup_for_keys = False
+                await self.room_setup()
+                return
+            self.setup_delayed_for += 1
+        
+        if self.setup_delayed_for > 5:
+            await self.room_setup_failed()
+
     #debug print messages
     #TODO: REMOVE? 
     async def cb_print_messages(self, room: MatrixRoom, event: RoomMessageText):
@@ -81,10 +121,10 @@ class CommonClient(AsyncClient):
         else:
             encrypted_symbol = "⚠️ "
         print(f"{room.display_name} |{encrypted_symbol}| {room.user_name(event.sender)}: {event.body}")
-        if "!devices" in event.body.lower() and not "chloebot" in event.sender:
+        if "!devices" in event.body.lower() and not self.bot_config.server.user_id == event.sender:
             print("These are all known devices:")
             [print(f"\t{device.user_id}\t {device.device_id}\t {device.trust_state}\t  {device.display_name}") for device in self.device_store]
-        if "meow" in event.body.lower() and not "chloebot" in event.sender:
+        if "meow" in event.body.lower() and not self.bot_config.server.user_id == event.sender:
             await self.send_text_to_room("meow")
 
     async def send_text_to_room(self, message):
@@ -105,6 +145,17 @@ class CommonClient(AsyncClient):
 
             #sys.exit(1)
 
+    async def cb_room_setup(self, room: MatrixRoom, event: InviteMemberEvent):
+        print("Room Setup?")
+        if event.membership and event.membership == "invite" and room.room_id == self.bot_config.server.channel:
+            print("We were invited to our channel!")
+            print(room)
+            print(event)
+
+            await self.join(room.room_id)
+            self.bot_inviter_id = event.sender
+            self.delay_setup = True
+
     def only_trust_devices(self, device_list: Optional[str] = None) -> None:
         for olm_device in self.device_store:
             if device_list == None or olm_device.device_id in device_list:
@@ -120,8 +171,19 @@ class CommonClient(AsyncClient):
         config_file.write(config_as_json)
         config_file.close()
 
-    def print(self, text):
-        print(f"[{self.bot_id}] {text}")
-
     async def after_first_sync(self):
-        pass
+        if not self.bot_config.server.channel in self.rooms:
+            self.delay_setup = True
+        else:
+            print("after_first_sync calling room_setup")
+            await self.room_setup()
+
+    async def room_setup(self):
+        raise Exception("Room setup not implemented")
+
+    async def room_setup_failed(self):
+        print("Setup failed!")
+        print("Setup failed!")
+        print("Setup failed!")
+        print("Setup failed!")
+        raise Exception("Setup failed")

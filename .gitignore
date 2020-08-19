@@ -1,5 +1,6 @@
 nio_store/
 storage/
+storage_old/
 *.pyc
 catbot.cfg
 get-matrix-token.sh

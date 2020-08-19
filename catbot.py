@@ -25,11 +25,7 @@ async def run_client(client: CommonClient) -> None:
     async def after_first_sync():
         print("Awaiting sync")
         await client.synced.wait()
-
         await client.after_first_sync()
-#        client.trust_devices(BOB_ID, BOB_DEVICE_IDS)
-
-#        client.trust_devices(ALICE_USER_ID)
 
     after_first_sync_task = asyncio.ensure_future(after_first_sync())
     sync_forever_task = asyncio.ensure_future(client.sync_forever(30000, full_state=True))
