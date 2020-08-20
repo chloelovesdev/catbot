@@ -86,8 +86,10 @@ class ChannelClient(CommonClient):
         for name, module in self.modules.items():
             # find methods in the modules
             for method_name, method_obj in inspect.getmembers(module, predicate=inspect.ismethod):
+                print(method_name)
+                print(method_obj)
                 # do not include and __ functions
-                if not method_name.startswith("__"):
+                if not "__" in method_name:
                     method_result = method_obj(event)
 
                     if not method_result == None:
