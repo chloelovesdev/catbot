@@ -9,20 +9,6 @@ def setup(func):
             return None
     return ret_fun
 
-def command(*args, **kwargs):
-    print(args)
-    print(kwargs)
-    def ret_fun(*inner_args, **inner_kwargs):
-        print("called")
-        print(inner_args)
-        print(inner_kwargs)
-        if len(args) > 1 and isinstance(args[1], CommandEvent):
-            return func(*inner_args, **inner_kwargs)
-        else:
-            return None
-    print("return")
-    return ret_fun
-
 class command(object):
     def __init__(self, name, help=""):
         self.name = name
