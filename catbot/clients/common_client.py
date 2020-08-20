@@ -8,7 +8,7 @@ from typing import Optional
 
 from nio import (AsyncClient, ClientConfig, DevicesError, Event,InviteEvent, LoginResponse,
                  LocalProtocolError, MatrixRoom, MatrixUser, RoomMessageText, InviteMemberEvent, SyncResponse,
-                 crypto, exceptions, RoomSendResponse)
+                 crypto, exceptions, RoomSendResponse, RoomMemberEvent)
 
 from python_json_config import ConfigBuilder
 
@@ -31,6 +31,7 @@ class CommonClient(AsyncClient):
         if not os.path.isdir(store_path):
             os.mkdir(store_path)
 
+        # loads in the config unless it doesn't exist
         builder = ConfigBuilder()
         self.config_path = os.path.join(store_path, "config.json")
         if not os.path.exists(self.config_path):
@@ -80,6 +81,38 @@ class CommonClient(AsyncClient):
             self.load_store()
 
     async def cb_synced(self, response):
+        # find the latest state event
+        # hack around RoomMemberEvent not being given to the channel_client for some reason
+        # TODO: fix this mess!
+        def check_rooms_in_sync(state, state_latest_timestamp, rooms):
+            for room_id, room_info in rooms.items():
+                if room_id == self.bot_config.server.channel:
+                    for event in room_info.timeline.events:
+                        if isinstance(event, RoomMemberEvent) and event.state_key == self.bot_config.server.user_id and event.source['origin_server_ts'] > state_latest_timestamp:
+                            state = event.content['membership']
+                            state_latest_timestamp = event.source['origin_server_ts']
+            
+            return (state, state_latest_timestamp)
+
+        state = "join"
+        state_latest_timestamp = 0
+        
+        state, state_latest_timestamp = check_rooms_in_sync(state, state_latest_timestamp, response.rooms.join)
+        state, state_latest_timestamp = check_rooms_in_sync(state, state_latest_timestamp, response.rooms.leave)
+        for room_id, room_info in response.rooms.invite.items():
+            if room_id == self.bot_config.server.channel:
+                print(room_info)
+                for event in room_info.invite_state:
+                    if isinstance(event, InviteMemberEvent) and event.state_key == self.bot_config.server.user_id and event.source['origin_server_ts'] > state_latest_timestamp:
+                        state = event.content['membership']
+                        state_latest_timestamp = event.source['origin_server_ts']
+
+        await self.membership_changed(state)
+
+        # check if the setup is delayed
+        # if the room is encrypted, we wait another sync for the keys
+        # when all is good, room_setup will be fired
+
         #print(f"Synced: {response}")
         if self.delay_setup and self.bot_config.server.channel in self.rooms:
             room = self.rooms[self.bot_config.server.channel]
@@ -104,6 +137,10 @@ class CommonClient(AsyncClient):
                 await self.room_setup()
                 return
             self.setup_delayed_for += 1
+
+        # if the setup has been delayed for more than 5 syncs,
+        # call the room_setup_failed method
+        # this is here in case the bot has not been invited/joined or the keys were never sent.
         
         if self.setup_delayed_for > 5:
             await self.room_setup_failed()
@@ -186,4 +223,7 @@ class CommonClient(AsyncClient):
         print("Setup failed!")
         print("Setup failed!")
         print("Setup failed!")
-        raise Exception("Setup failed")
+        raise Exception("Setup failed (maybe bot is not in/invited to room?)")
+
+    async def membership_changed(self, state):
+        pass

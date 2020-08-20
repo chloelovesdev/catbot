@@ -1,5 +1,3 @@
-#!/usr/bin/python3
-
 import configparser
 import asyncio
 import os
@@ -15,9 +13,9 @@ from nio import (AsyncClient, ClientConfig, DevicesError, Event,InviteEvent, Log
 from nio.log import logger_group
 
 #TODO
-from clients.main_client import MainClient
-from clients.common_client import CommonClient
-from clients.channel_client import ChannelClient
+from .clients.main_client import MainClient
+from .clients.common_client import CommonClient
+from .clients.channel_client import ChannelClient
 
 async def run_client(client: CommonClient) -> None:
     await client.login()
@@ -48,7 +46,7 @@ async def run_client(client: CommonClient) -> None:
             sync_forever_task
         )
 
-async def main():
+async def main(path_to_run):
     global_store_path = os.path.realpath("storage/") #TODO accept command line args!
 
     if not os.path.isdir(global_store_path):
@@ -67,7 +65,7 @@ async def main():
     if main_mode:
         client = MainClient(
             global_store_path,
-            os.path.realpath("./catbot.py")
+            path_to_run
         )
     else:
         client = ChannelClient(
@@ -79,11 +77,3 @@ async def main():
         await run_client(client)
     except (asyncio.CancelledError, KeyboardInterrupt):
         await client.close()
-
-if __name__ == "__main__":
-    try:
-        asyncio.run(
-            main()
-        )
-    except KeyboardInterrupt:
-        pass

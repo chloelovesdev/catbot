@@ -125,7 +125,7 @@ class MainClient(CommonClient):
                 # line = line.decode("ascii").rstrip()
                 if line:
                     print(f"[{bot_id}] [{std}] {line}")
-                    if line.rstrip() == b"DELETEBOT":
+                    if line.rstrip() == b"DEACTIVATEBOT":
                         print(f"Deleting bot on {std} with ID " + bot_id)
                         if std == "stdout":
                             self.bot_config.update(f"bots.{bot_id}.active", False) # bot is disabled
