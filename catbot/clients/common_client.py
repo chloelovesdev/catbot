@@ -6,6 +6,8 @@ import json
 
 from typing import Optional
 
+from markdown2 import Markdown
+
 from nio import (AsyncClient, ClientConfig, DevicesError, Event,InviteEvent, LoginResponse,
                  LocalProtocolError, MatrixRoom, MatrixUser, RoomMessageText, InviteMemberEvent, SyncResponse,
                  crypto, exceptions, RoomSendResponse, RoomMemberEvent)
@@ -48,6 +50,7 @@ class CommonClient(AsyncClient):
         self.delay_setup_for_keys = False
         self.keys_sent = False
         self.setup_delayed_for = 0 # syncs the setup has been delayed for
+        self.has_setup = False
 
         self.add_event_callback(self.cb_print_messages, RoomMessageText)
         self.add_event_callback(self.cb_room_setup, InviteMemberEvent)
@@ -125,6 +128,7 @@ class CommonClient(AsyncClient):
 
             print("cb_synced calling room_setup")
             await self.room_setup()
+            self.has_setup = True
             self.delay_setup = False
         elif self.delay_setup:
             self.setup_delayed_for += 1
@@ -135,6 +139,7 @@ class CommonClient(AsyncClient):
                 print("Device with key found")
                 self.delay_setup_for_keys = False
                 await self.room_setup()
+                self.has_setup = True
                 return
             self.setup_delayed_for += 1
 
@@ -162,9 +167,9 @@ class CommonClient(AsyncClient):
             print("These are all known devices:")
             [print(f"\t{device.user_id}\t {device.device_id}\t {device.trust_state}\t  {device.display_name}") for device in self.device_store]
         if "meow" in event.body.lower() and not self.bot_config.server.user_id == event.sender:
-            await self.send_text_to_room("meow")
+            await self.send_text("meow")
 
-    async def send_text_to_room(self, message):
+    async def send_text(self, message, type="m.text"):
         # trust the devices from the config every time we send, to prevent olm errors
         self.only_trust_devices(self.bot_config.owner.session_ids)
 
@@ -180,8 +185,27 @@ class CommonClient(AsyncClient):
         except exceptions.OlmUnverifiedDeviceError as err:
             print("olm error")
 
-            #sys.exit(1)
+    async def send_markdown(self, message):
+        return await self.send_html(Markdown().convert(message))
 
+    async def send_html(self, message):
+        # trust the devices from the config every time we send, to prevent olm errors
+        self.only_trust_devices(self.bot_config.owner.session_ids)
+
+        try:
+            await self.room_send(
+                room_id=self.bot_config.server.channel,
+                message_type="m.room.message",
+                content = {
+                    "msgtype": "m.text",
+                    "format": "org.matrix.custom.html",
+                    "body": message,
+                    "formatted_body": message
+                }
+            )
+        except exceptions.OlmUnverifiedDeviceError as err:
+            print("olm error")
+            
     async def cb_room_setup(self, room: MatrixRoom, event: InviteMemberEvent):
         print("Room Setup?")
         if event.membership and event.membership == "invite" and room.room_id == self.bot_config.server.channel:
@@ -214,6 +238,7 @@ class CommonClient(AsyncClient):
         else:
             print("after_first_sync calling room_setup")
             await self.room_setup()
+            self.has_setup = True
 
     async def room_setup(self):
         raise Exception("Room setup not implemented")

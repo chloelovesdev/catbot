@@ -46,7 +46,7 @@ async def run_client(client: CommonClient) -> None:
             sync_forever_task
         )
 
-async def main(path_to_run):
+async def main(entrypoint_file):
     global_store_path = os.path.realpath("storage/") #TODO accept command line args!
 
     if not os.path.isdir(global_store_path):

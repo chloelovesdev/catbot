@@ -53,7 +53,7 @@ class MainClient(CommonClient):
         print(event)
 
         if self.check_room_with_bot_exists(room):
-            await self.send_text_to_room("bot already exists with room id and invite given(?)")
+            await self.send_text("bot already exists with room id and invite given(?)")
             return
         else:
             loop = asyncio.get_event_loop()
@@ -168,4 +168,4 @@ class MainClient(CommonClient):
 
     async def room_setup(self):
         print("We are setting up!")
-        await self.send_text_to_room("Hello, world!")
+        await self.send_text("Hello, world!")

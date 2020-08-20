@@ -37,9 +37,9 @@ class Sandbox(module.Module):
 
         print(result)
         if "stderr" in result and result["stderr"] != b'':
-            await self.bot.send_text_to_room("An error occurred while trying to run module\n\n" + stderr.decode("utf-8"))
+            await self.bot.send_text("An error occurred while trying to run module\n\n" + stderr.decode("utf-8"))
         elif "stdout" in result and result["stdout"] != b'':
-            await self.bot.send_text_to_room(result["stdout"].decode("utf-8"))
+            await self.bot.send_text(result["stdout"].decode("utf-8"))
         elif "stdout" in result:
-            await self.bot.send_text_to_room("Command did not output anything.")
+            await self.bot.send_text("Command did not output anything.")
             

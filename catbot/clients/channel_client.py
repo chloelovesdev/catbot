@@ -26,9 +26,9 @@ class ChannelClient(CommonClient):
         self.add_event_callback(self.cb_maybe_run_commands, RoomMessageText)
 
         if not self.bot_config.command_prefix:
-            self.bot_config.command_prefix = "!"
+            self.bot_config.add("command_prefix", "!")
         if not self.bot_config.factoid_prefix:
-            self.bot_config.factoid_prefix = "?"
+            self.bot_config.add("factoid_prefix", "!")
 
     def load_modules(self):
         result = {}
@@ -70,9 +70,9 @@ class ChannelClient(CommonClient):
             #TODO: add matrix event?
             if self.bot_inviter_id in inviter_room.power_levels.users and inviter_room.power_levels.users[self.bot_inviter_id] >= 50:
                 print("Inviter has correct power level")
-                await self.send_text_to_room("catbot here at your service :)") #TODO: get hello from config file
+                await self.send_text("catbot here at your service :)") #TODO: get hello from config file
             else:
-                await self.send_text_to_room(self.bot_inviter_id + " invited me, but does not have the correct power level for me to join (>=50)")
+                await self.send_text(self.bot_inviter_id + " invited me, but does not have the correct power level for me to join (>=50)")
                 await self.delete_self()
 
         self.modules = self.load_modules()
@@ -108,6 +108,9 @@ class ChannelClient(CommonClient):
         sys.exit(1)
 
     async def cb_maybe_run_commands(self, room: MatrixRoom, event: RoomMessageText):
+        if not self.has_setup:
+            return
+        
         # dont use anything thats not from the bot's channel
         if room.room_id != self.bot_config.server.channel:
             # print(room.room_id)

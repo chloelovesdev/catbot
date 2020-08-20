@@ -1,5 +1,6 @@
 from catbot.modules import module
 import os
+import re
 
 class Factoid(module.Module):
     @module.setup
@@ -38,30 +39,35 @@ class Factoid(module.Module):
     @module.command("factoid get", help="Get the content of a factoid")
     async def on_cmd_factoid_get(self, event):
         if event.body == "":
-            await self.bot_send_text_to_room("Incorrect usage! Use factoid get <name>")
+            await self.bot.send_text("Incorrect usage! Use factoid get <name>")
             return
 
         print("Get ran")
         content = self.__get_factoid_content(event.body)
 
         if content:
-            await self.bot.send_text_to_room(f"Factoid content for {event.body}:\n\n{content}")
+            await self.bot.send_html(f"Factoid content for {event.body}:\n\n<pre>{content}</pre>")
         else:
-            await self.bot.send_text_to_room(f"Factoid not found.")
+            await self.bot.send_text(f"Factoid not found.")
         
     @module.command("factoid set", help="Set the content of a factoid")
     async def on_cmd_factoid_set(self, event):
         if not " " in event.body:
-            await self.bot_send_text_to_room("Incorrect usage! Use factoid set <name> <content>")
+            await self.bot.send_text("Incorrect usage! Use factoid set <name> <content>")
             return
 
-        body_split = event.body.split(" ", 1)
+        body_split = re.split("\n|\r| ", event.body, 1)
         name = body_split[0]
         content = body_split[1]
 
         if self.__set_factoid_content(name, content):
-            await self.bot.send_text_to_room(f"Factoid {name} set!")
+            await self.bot.send_text(f"Factoid {name} set!")
         else:
-            await self.bot.send_text_to_room(f"Failed saving factoid {name}!")
+            await self.bot.send_text(f"Failed saving factoid {name}!")
+
+    @module.message
+    async def on_factoid(self, event):
+        if event.body.startswith(self.bot.bot_config.factoid_prefix):
+            pass
 
 print("Test")
