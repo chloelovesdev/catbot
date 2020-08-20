@@ -1,8 +1,12 @@
 from catbot.modules import module
 
 class Ping(module.Module):
-    @module.command("ping", help="Hello there")
+    @module.setup
+    async def setup(self, event):
+        return ["ping"]
+
+    @module.command("ping", help="Replies with pong")
     async def on_cmd_ping(self, event):
-        await self.client.send_text_to_room("pong")
+        await self.bot.send_text_to_room("Pong!")
 
 print("Test")

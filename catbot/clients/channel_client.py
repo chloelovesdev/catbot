@@ -5,6 +5,7 @@ import sys
 import json
 import importlib
 import inspect
+import copy
 
 from typing import Optional
 
@@ -15,7 +16,7 @@ from nio import (AsyncClient, ClientConfig, DevicesError, Event, InviteMemberEve
 from .common_client import CommonClient
 
 from ..modules import module
-from ..events import (BotSetupEvent, CommandEvent)
+from ..events import (BotSetupEvent)
 
 class ChannelClient(CommonClient):
     def __init__(self, global_store_path, bot_id):
@@ -41,7 +42,7 @@ class ChannelClient(CommonClient):
             if os.path.isdir(path):
                 # skip directories
                 continue
-            
+
             command_name = os.path.splitext(fname)[0]
 
             spec = importlib.util.spec_from_file_location("catbot.modules." + command_name, path)
@@ -52,7 +53,6 @@ class ChannelClient(CommonClient):
                 if class_name.lower() == command_name.lower().replace("_", "").replace("-", ""):
                     module = class_obj(self)
                     result[command_name] = module
-                    print(module)
 
         return result
 
@@ -76,15 +76,26 @@ class ChannelClient(CommonClient):
                 await self.delete_self()
 
         self.modules = self.load_modules()
-        await self.send_to_all_modules(BotSetupEvent())
+        self.commands = await self.send_to_all_modules(BotSetupEvent())
+        print(self.commands)
 
     async def send_to_all_modules(self, event):
+        results = []
+
+        # loop through all loaded modules
         for name, module in self.modules.items():
+            # find methods in the modules
             for method_name, method_obj in inspect.getmembers(module, predicate=inspect.ismethod):
+                # do not include and __ functions
                 if not method_name.startswith("__"):
                     method_result = method_obj(event)
+
                     if not method_result == None:
-                        await method_result
+                        result = await method_result
+                        if result != None and isinstance(result, list):
+                            results += result
+    
+        return results
 #            print(classes)
 
     async def delete_self(self):
@@ -101,13 +112,9 @@ class ChannelClient(CommonClient):
             return
 
         if event.body.startswith(self.bot_config.command_prefix):
-            await self.run_command(room, event.body)
-        if event.body.startswith(self.bot_config.factoid_prefix):
-            await self.run_factoid(room, event.body)
-
-    async def run_command(self, room, message):
-        msg_without_prefix = message[len(self.bot_config.command_prefix):]
-        split_message = msg_without_prefix.split(" ")
-        clean_cmd_name = split_message[0].replace(".", "").replace("/", "").replace("\\", "")
-        msg_without_command = message[len(self.bot_config.command_prefix) + len(clean_cmd_name):].lstrip()
-        await self.send_to_all_modules(CommandEvent(clean_cmd_name, msg_without_command))
+            # remove the prefix and send to all modules
+            copied_event = copy.deepcopy(event)
+            copied_event.body = copied_event.body[len(self.bot_config.command_prefix):]
+            await self.send_to_all_modules(copied_event)
+        else:
+            await self.send_to_all_modules(event)
