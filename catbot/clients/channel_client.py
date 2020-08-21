@@ -7,6 +7,7 @@ import importlib
 import inspect
 import copy
 import shlex
+import traceback
 import re
 
 from typing import Optional
@@ -200,7 +201,7 @@ class ChannelClient(CommonClient):
 
                 factoid_content = self.get_factoid_content(factoid_command_split[0])
                 if factoid_content == None:
-                    raise CommandNotFound(event.body)
+                    raise CommandNotFound(f"Command not found for {event.body}")
 
                 for x in range(100):
                     if "$" + str(x) in factoid_content and len(factoid_command_split) <= x:
@@ -352,6 +353,7 @@ class ChannelClient(CommonClient):
                 else:
                     await self.send_text(reply_to_send)
             except (CommandNotFound, RecursionLimitExceeded, EmptyInput) as e:
+                traceback.print_exc()
                 await self.send_text("An error occurred. " + str(e))
         else:
             await self.send_to_all_modules(event)
