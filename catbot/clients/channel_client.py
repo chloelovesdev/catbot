@@ -40,8 +40,6 @@ class ChannelClient(CommonClient):
 
         if not self.bot_config.command_prefix:
             self.bot_config.add("command_prefix", "!")
-        if not self.bot_config.factoid_prefix:
-            self.bot_config.add("factoid_prefix", "!")
 
         self.factoid_dir_path = os.path.realpath(os.path.join(self.global_store_path, "factoids"))
         if not os.path.isdir(self.factoid_dir_path):
@@ -149,7 +147,6 @@ class ChannelClient(CommonClient):
         return results
     
     def consolidate_replies(self, replies: list):
-        print("Consolidating replies: " + str(replies))
         is_html = False
         reply_to_send = ""
 
@@ -173,19 +170,17 @@ class ChannelClient(CommonClient):
         return os.path.join(self.factoid_dir_path, name)
 
     async def run_command(self, event, recurse_count=0):
-        print(f"Running command with body {event.body}")
         if recurse_count == 10:
             raise RecursionLimitExceeded()
 
-        # take a copy and remove the prefix
         async def actually_run(event):
-            print(f"Actually run {event.body}")
             results = []
             no_commands_found = True
             
             if len(event.body) == 0:
                 raise EmptyInput()
 
+            # first, we check if any of our modules reported this as a command
             for module, commands in self.commands.items():
                 for command in commands:
                     if event.body.startswith(command):
@@ -194,42 +189,53 @@ class ChannelClient(CommonClient):
                         results += buffering_event.buffer
                         no_commands_found = False
             
+            # there were no commands found, so we will execute this as a factoid
             if no_commands_found:
-                print(f"Trying to run \"{event.body}\" as factoid")
-
                 factoid_command_split = event.body.split(" ")
 
+                # get the factoid from the db/fs
                 factoid_content = self.get_factoid_content(factoid_command_split[0])
                 if factoid_content == None:
-                    raise CommandNotFound(f"Command not found for {event.body}")
-
+                    raise CommandNotFound(f"Command not found for '{factoid_command_split[0]}'")
+                    
+                # first check if a $NUM argument is required but not in the event body
                 for x in range(100):
                     if "$" + str(x) in factoid_content and len(factoid_command_split) <= x:
-                        raise EmptyInput(f"More input is required for '{event.body}")
+                        raise EmptyInput(f"More input is required for '{factoid_command_split[0]}'")
 
+                # then replace all the arguments into the factoid we are going to run
+                # we escape quotation marks and wrap the input in quotes
                 for x in range(len(factoid_command_split)):
                     factoid_content = factoid_content.replace("$" + str(x), '"' + factoid_command_split[x].replace("\"", "\\\"") + '"')
                 
+                # replace any occurences of $@
+                # escape quotation marks, wrap in quotes
                 if len(factoid_command_split) > 1:
                     factoid_content = factoid_content.replace("$@", '"' + " ".join(factoid_command_split[1:]).replace("\"", "\\\"") + '"')
                 elif "$@" in factoid_content:
-                    raise EmptyInput(f"Input required for {event.body}")
+                    raise EmptyInput(f"Input required for {factoid_command_split[0]}")
 
+                # check if we are being redirected to another command,
+                # and if so we run and return the output of that command instead
                 if factoid_content.startswith("<cmd>"):
-                    print(f"Run command in factoid {factoid_content}")
+                    # print(f"Run command in factoid {factoid_content}")
                     copied_event = copy.deepcopy(event)
                     copied_event.body = factoid_content[len("<cmd>"):]
                     return await self.run_command(copied_event, recurse_count + 1)
+                # in case anyone wanted to just write html factoids
                 elif factoid_content.startswith("<html>"):
                     return [{
                         "type": "html",
                         "body": factoid_content[len("<html>"):]
                     }]
+                # markdown factoids
                 elif factoid_content.startswith("<markdown>"):
                     return [{
                         "type": "markdown",
                         "body": factoid_content[len("<markdown>"):]
                     }]
+                # check if a custom content prefix is being used with a command that is
+                # registered with the bot
                 else:
                     for module, commands in self.commands.items():
                         for command in commands:
@@ -239,6 +245,7 @@ class ChannelClient(CommonClient):
                                 copied_event.body = command + " " + copied_event.body
                                 return await self.run_command(copied_event, recurse_count + 1)
 
+                # fallback to just sending the factoid content as text
                 return [{
                     "type": "text",
                     "body": factoid_content
@@ -246,14 +253,8 @@ class ChannelClient(CommonClient):
 
             return results
 
-        # streamline run commands that eat everything
-        print("test")
+        # first of all, execute the commands that eat everything
         for module, commands in self.commands.items():
-            print("")
-            print(module)
-            print(commands)
-            print("")
-
             if isinstance(commands, dict):
                 for command, eat_everything in commands.items():
                     if event.body.startswith(command) and eat_everything:
@@ -265,71 +266,32 @@ class ChannelClient(CommonClient):
         count = 0
         results = []
 
+        # split by | unless escaped
         split_by_redirect = re.split("(?<!\\\\)[|]", event.body)
 
         for command in split_by_redirect:
             copied_event = copy.deepcopy(event)
             copied_event.body = command.strip().replace("\\|", "|")
 
+            # we were passed output from the previous command
             if len(previous_output) > 0:
-                print(f"Previous output found, old body is {copied_event.body}")
+                # add a space if there isnt one 
                 if len(copied_event.body) > 0 and copied_event.body[-1:] != " ":
                     copied_event.body += " "
+                # consolidate the output of the previous command
                 _, consolidated_previous_output = self.consolidate_replies(previous_output)
+                # add it to the new event
                 copied_event.body = copied_event.body + consolidated_previous_output
-                print(f"Previous output found, new body is {copied_event.body}")
             
+            # only return results for the last command in the sequence
             if len(split_by_redirect) - 1 == count:
                 results = await actually_run(copied_event)
-                print("Results:")
-                print(results)
             else:
                 previous_output = await actually_run(copied_event)
-                print("Setting previous_output:")
-                print(previous_output)
 
             count = count + 1
 
         return results
-
-        # shlex_instance = shlex.shlex(event.body, punctuation_chars="|", posix=True)
-        # previous_output = []
-        # collected_args = []
-
-        # while True:
-        #     current_token = shlex_instance.get_token()
-        #     print(f"Token: {current_token}")
-        #     if current_token == ";" or current_token == "|" or current_token == None:
-        #         print("Attempting to run command")
-        #         copied_event = copy.deepcopy(event)
-        #         copied_event.body = shlex.join(collected_args)
-
-        #         if len(previous_output) > 0:
-        #             print(f"Previous output found, old body is {copied_event.body}")
-        #             if len(copied_event.body) > 0 and copied_event.body[-1:] != " ":
-        #                 copied_event.body += " "
-        #             _, consolidated_previous_output = self.consolidate_replies(previous_output)
-        #             copied_event.body = copied_event.body + consolidated_previous_output
-        #             print(f"Previous output found, new body is {copied_event.body}")
-        #             previous_output = []
-
-        #         if current_token != "|":
-        #             results += await actually_run(copied_event)
-        #             print("Results:")
-        #             print(results)
-        #         else:
-        #             previous_output = await actually_run(copied_event)
-        #             print("Setting previous_output:")
-        #             print(previous_output)
-
-        #         collected_args = []
-
-        #         if current_token == None:
-        #             break
-        #     else:
-        #         collected_args.append(current_token)
-        
-        # return results
 
     async def cb_maybe_run_commands(self, room: MatrixRoom, event: RoomMessageText):
         if not self.has_setup:
