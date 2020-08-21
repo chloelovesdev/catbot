@@ -12,10 +12,7 @@ from nio import (AsyncClient, ClientConfig, DevicesError, Event,InviteEvent, Log
                  crypto, exceptions, RoomSendResponse)
 from nio.log import logger_group
 
-#TODO
-from .clients.main_client import MainClient
-from .clients.common_client import CommonClient
-from .clients.channel_client import ChannelClient
+from catbot.clients import (MainClient, CommonClient, ChannelClient)
 
 async def run_client(client: CommonClient) -> None:
     await client.login()

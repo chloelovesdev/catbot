@@ -17,10 +17,10 @@ from nio import (AsyncClient, ClientConfig, DevicesError, Event, InviteMemberEve
                  LocalProtocolError, MatrixRoom, MatrixUser, RoomMessageText, SyncResponse, RoomMemberEvent,
                  crypto, exceptions, RoomSendResponse)
 
-from .common_client import CommonClient
+from catbot.clients import CommonClient
 
-from ..modules import module
-from ..events import (BotSetupEvent, ReplyBufferingEvent)
+from catbot import module
+from catbot.events import (BotSetupEvent, ReplyBufferingEvent)
 
 class CommandNotFound(Exception):
     pass

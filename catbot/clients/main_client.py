@@ -18,7 +18,7 @@ from nio import (AsyncClient, ClientConfig, DevicesError, Event, InviteNameEvent
 
 from asyncio.exceptions import TimeoutError
 
-from .common_client import CommonClient
+from catbot.clients import CommonClient
 
 from python_json_config.config_node import ConfigNode
 
