@@ -20,10 +20,10 @@ class Sandbox(module.Module):
         }
 
         return [
-            "sandbox python"
+            "python"
         ]
 
-    @module.command("sandbox python", help="Executes python code.")
+    @module.command("python", help="Executes python code.")
     async def on_cmd_python(self, event):
         epicbox.configure(
             profiles=[
@@ -37,9 +37,9 @@ class Sandbox(module.Module):
 
         print(result)
         if "stderr" in result and result["stderr"] != b'':
-            await self.bot.send_text("An error occurred while trying to run module\n\n" + stderr.decode("utf-8"))
+            await event.reply("An error occurred while trying to run module\n\n" + result["stderr"].decode("utf-8"))
         elif "stdout" in result and result["stdout"] != b'':
-            await self.bot.send_text(result["stdout"].decode("utf-8"))
+            await event.reply(result["stdout"].decode("utf-8"))
         elif "stdout" in result:
-            await self.bot.send_text("Command did not output anything.")
+            await event.reply("Command did not output anything.")
             

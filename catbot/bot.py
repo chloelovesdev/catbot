@@ -65,7 +65,7 @@ async def main(entrypoint_file):
     if main_mode:
         client = MainClient(
             global_store_path,
-            path_to_run
+            entrypoint_file
         )
     else:
         client = ChannelClient(

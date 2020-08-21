@@ -1,11 +1,11 @@
-from catbot.events import BotSetupEvent
+from catbot.events import BotSetupEvent, ReplyBufferingEvent
 
 from nio import (RoomMessageText)
 
 def setup(func):
     def ret_fun(*args, **kwargs):
         print(args)
-        if isinstance(args[1], BotSetupEvent):
+        if len(args) > 1 and isinstance(args[1], ReplyBufferingEvent) and isinstance(args[1].original_event, BotSetupEvent):
             return func(*args, **kwargs)
         else:
             return None
@@ -13,8 +13,7 @@ def setup(func):
 
 def message(func):
     def ret_fun(*args, **kwargs):
-        print(args)
-        if isinstance(args[1], RoomMessageText):
+        if len(args) > 1 and isinstance(args[1], ReplyBufferingEvent) and isinstance(args[1].original_event, RoomMessageText):
             return func(*args, **kwargs)
         else:
             return None
@@ -29,11 +28,11 @@ class command(object):
         decorator_self = self
         
         async def wrappee(*args, **kwargs):
-            if len(args) > 1 and isinstance(args[1], RoomMessageText):
-                if args[1].body.startswith(self.name):
+            if len(args) > 1 and isinstance(args[1], ReplyBufferingEvent) and isinstance(args[1].original_event, RoomMessageText):
+                if args[1].original_event.body.startswith(self.name):
                     # remove the command name from the body
                     # and also strip away any spaces before the command
-                    args[1].body = args[1].body[len(self.name):].lstrip()
+                    args[1].original_event.body = args[1].original_event.body[len(self.name):].lstrip()
                     return await func(*args, **kwargs)
             return None
         return wrappee

@@ -169,7 +169,7 @@ class CommonClient(AsyncClient):
         if "meow" in event.body.lower() and not self.bot_config.server.user_id == event.sender:
             await self.send_text("meow")
 
-    async def send_text(self, message, type="m.text"):
+    async def send_text(self, message):
         # trust the devices from the config every time we send, to prevent olm errors
         self.only_trust_devices(self.bot_config.owner.session_ids)
 
@@ -184,9 +184,6 @@ class CommonClient(AsyncClient):
             )
         except exceptions.OlmUnverifiedDeviceError as err:
             print("olm error")
-
-    async def send_markdown(self, message):
-        return await self.send_html(Markdown().convert(message))
 
     async def send_html(self, message):
         # trust the devices from the config every time we send, to prevent olm errors
@@ -206,6 +203,9 @@ class CommonClient(AsyncClient):
         except exceptions.OlmUnverifiedDeviceError as err:
             print("olm error")
             
+    async def send_markdown(self, message):
+        return await self.send_html(Markdown().convert(message))
+
     async def cb_room_setup(self, room: MatrixRoom, event: InviteMemberEvent):
         print("Room Setup?")
         if event.membership and event.membership == "invite" and room.room_id == self.bot_config.server.channel:

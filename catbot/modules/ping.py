@@ -7,6 +7,4 @@ class Ping(module.Module):
 
     @module.command("ping", help="Replies with pong")
     async def on_cmd_ping(self, event):
-        await self.bot.send_text("Pong!")
-
-print("Test")
+        await event.reply("Pong!")
