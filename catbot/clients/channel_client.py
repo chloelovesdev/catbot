@@ -182,7 +182,7 @@ class ChannelClient(CommonClient):
             no_commands_found = True
             
             if len(event.body) == 0:
-                raise EmptyInput()
+                raise EmptyInput("Input was empty.")
 
             # first, we check if any of our modules reported this as a command
             for module, commands in self.commands.items():
