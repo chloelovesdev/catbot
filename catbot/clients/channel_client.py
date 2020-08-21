@@ -63,7 +63,7 @@ class ChannelClient(CommonClient):
     def load_modules(self):
         result = {}
 
-        path_to_commands = os.path.join(os.path.dirname(__file__), "..", "modules")
+        path_to_commands = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "modules"))
         print(path_to_commands)
 
         for fname in os.listdir(path_to_commands):
@@ -127,8 +127,11 @@ class ChannelClient(CommonClient):
                 if not method_result == None:
                     result = await method_result
 
+                    # normally module setups returns lists of commands they handle
                     if result != None and isinstance(result, list):
                         results += result
+                    # some modules return dicts in their setup handlers
+                    # this is used to know which commands eat all input and do not use redirection
                     elif result != None and isinstance(result, dict) and return_dicts:
                         return result
         
