@@ -1,6 +1,6 @@
 import epicbox
 
-from catbot.modules import module
+from catbot import module
 
 class Sandbox(module.Module):
     @module.setup

@@ -1,4 +1,4 @@
-from catbot.modules import module
+from catbot import module
 
 class HTML(module.Module):
     @module.setup
