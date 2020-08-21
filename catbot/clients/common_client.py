@@ -174,7 +174,7 @@ class CommonClient(AsyncClient):
         self.only_trust_devices(self.bot_config.owner.session_ids)
 
         try:
-            await self.room_send(
+            return await self.room_send(
                 room_id=self.bot_config.server.channel,
                 message_type="m.room.message",
                 content = {
@@ -184,13 +184,14 @@ class CommonClient(AsyncClient):
             )
         except exceptions.OlmUnverifiedDeviceError as err:
             print("olm error")
+            return None
 
     async def send_html(self, message):
         # trust the devices from the config every time we send, to prevent olm errors
         self.only_trust_devices(self.bot_config.owner.session_ids)
 
         try:
-            await self.room_send(
+            return await self.room_send(
                 room_id=self.bot_config.server.channel,
                 message_type="m.room.message",
                 content = {
@@ -202,13 +203,14 @@ class CommonClient(AsyncClient):
             )
         except exceptions.OlmUnverifiedDeviceError as err:
             print("olm error")
+            return None
 
     async def send_image(self, url, body="image"):
         # trust the devices from the config every time we send, to prevent olm errors
         self.only_trust_devices(self.bot_config.owner.session_ids)
 
         try:
-            await self.room_send(
+            return await self.room_send(
                 room_id=self.bot_config.server.channel,
                 message_type="m.room.message",
                 content = {
@@ -219,6 +221,7 @@ class CommonClient(AsyncClient):
             )
         except exceptions.OlmUnverifiedDeviceError as err:
             print("olm error")
+            return None
 
     async def send_markdown(self, message):
         return await self.send_html(Markdown().convert(message))

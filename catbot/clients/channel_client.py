@@ -15,7 +15,7 @@ from markdown2 import Markdown
 
 from nio import (AsyncClient, ClientConfig, DevicesError, Event, InviteMemberEvent, LoginResponse,
                  LocalProtocolError, MatrixRoom, MatrixUser, RoomMessageText, SyncResponse, RoomMemberEvent,
-                 crypto, exceptions, RoomSendResponse)
+                 crypto, exceptions, RoomSendResponse, RoomSendError)
 
 from catbot import module
 
@@ -100,11 +100,11 @@ class ChannelClient(CommonClient):
     async def room_setup(self):
         print("Bot is now in the room and we have the user data for the room")
 
+        # bot was just invited
         if self.bot_inviter_id:
             inviter_room = self.rooms[self.bot_config.server.channel]
             inviter_user = inviter_room.users[self.bot_inviter_id]
 
-            #TODO: add matrix event?
             if self.bot_inviter_id in inviter_room.power_levels.users and inviter_room.power_levels.users[self.bot_inviter_id] >= 50:
                 print("Inviter has correct power level")
                 await self.send_text("catbot here at your service :)") #TODO: get hello from config file
@@ -120,7 +120,7 @@ class ChannelClient(CommonClient):
         results = []
 
         for method_name, method_obj in inspect.getmembers(module_obj, predicate=inspect.ismethod):
-            # do not include any __ functions
+            # do not include any __ functions, they are module internals
             if not "__" in method_name:
                 method_result = method_obj(event)
 
@@ -149,6 +149,10 @@ class ChannelClient(CommonClient):
     def consolidate_replies(self, replies: list):
         is_html = False
         reply_to_send = ""
+
+        # loop through replies list,
+        # convert any markdown to html and set is_html
+        # for html, set is_html and concat the reply
 
         for reply in replies:
             if reply_to_send != "":
@@ -184,9 +188,14 @@ class ChannelClient(CommonClient):
             for module, commands in self.commands.items():
                 for command in commands:
                     if event.body.startswith(command):
+                        # great we found a module with the command
+                        # buffer all outputs for further inputs
                         buffering_event = ReplyBufferingEvent(self, event, buffer_replies=True)
+                        # actually fire the function in the module (buffering happens inside the module)
                         await self.__send_to_module(module, buffering_event)
+                        # append the result to results output
                         results += buffering_event.buffer
+                        # do not search factoids
                         no_commands_found = False
             
             # there were no commands found, so we will execute this as a factoid
@@ -303,17 +312,27 @@ class ChannelClient(CommonClient):
             return
 
         if event.body.startswith(self.bot_config.command_prefix):
+            # create a fresh copy of the event so we do not mess up other callbacks
             copied_event = copy.deepcopy(event)
             copied_event.body = copied_event.body[len(self.bot_config.command_prefix):]
 
             try:
+                # run all commands, outputs a list of concatenated replies which are consolidated
                 results = await self.run_command(copied_event)
                 is_html, reply_to_send = self.consolidate_replies(results)
                 
+                send_result = None
                 if is_html:
-                    await self.send_html(reply_to_send)
+                    send_result = await self.send_html(reply_to_send)
                 else:
-                    await self.send_text(reply_to_send)
+                    send_result = await self.send_text(reply_to_send)
+
+                # usually an olm error
+                if send_result == None:
+                    await self.send_text("Send failed (keys not setup?)")
+                # couldn't send message to the room for some reason
+                elif isinstance(send_result, RoomSendError):
+                    await self.send_text(str(send_result))
             except (CommandNotFound, RecursionLimitExceeded, EmptyInput) as e:
                 traceback.print_exc()
                 await self.send_text("An error occurred. " + str(e))
