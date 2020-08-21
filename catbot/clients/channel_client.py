@@ -268,7 +268,7 @@ class ChannelClient(CommonClient):
 
         for command in split_by_redirect:
             copied_event = copy.deepcopy(event)
-            copied_event.body = command.strip()
+            copied_event.body = command.strip().replace("\\|", "|")
 
             if len(previous_output) > 0:
                 print(f"Previous output found, old body is {copied_event.body}")
