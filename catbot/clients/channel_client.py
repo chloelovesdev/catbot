@@ -171,7 +171,7 @@ class ChannelClient(CommonClient):
 
     async def run_command(self, event, recurse_count=0):
         if recurse_count == 10:
-            raise RecursionLimitExceeded()
+            raise RecursionLimitExceeded("You have exceeded the recursion limit.")
 
         async def actually_run(event):
             results = []
