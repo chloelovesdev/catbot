@@ -41,10 +41,12 @@ class ChannelClient(CommonClient):
         if not self.bot_config.command_prefix:
             self.bot_config.add("command_prefix", "!")
 
+        # find and create factoid directory
         self.factoid_dir_path = os.path.realpath(os.path.join(self.global_store_path, "factoids"))
         if not os.path.isdir(self.factoid_dir_path):
             os.mkdir(self.factoid_dir_path)
 
+    # currently using files as a "DB"
     def get_factoid_path(self, name):
         name = name.replace("/", "").replace(".", "").replace("\\", "")
         return os.path.join(self.factoid_dir_path, name)
@@ -68,18 +70,22 @@ class ChannelClient(CommonClient):
 
         for fname in os.listdir(path_to_commands):
             path = os.path.join(path_to_commands, fname)
-            print(path)
+            print(f"Loading module from {path}")
+            
             if os.path.isdir(path):
                 # skip directories
                 continue
 
             command_name = os.path.splitext(fname)[0]
 
+            # import module's spec from file
             spec = importlib.util.spec_from_file_location("catbot.modules." + command_name, path)
-            foo = importlib.util.module_from_spec(spec)
-            spec.loader.exec_module(foo)
+            imported_module = importlib.util.module_from_spec(spec)
+            # load it into python
+            spec.loader.exec_module(imported_module)
 
-            for class_name, class_obj in inspect.getmembers(foo, inspect.isclass):
+            # instantiate the class with the same name as the file
+            for class_name, class_obj in inspect.getmembers(imported_module, inspect.isclass):
                 if class_name.lower() == command_name.lower().replace("_", "").replace("-", ""):
                     module = class_obj(self)
                     result[command_name] = module
