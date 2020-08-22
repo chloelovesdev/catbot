@@ -178,10 +178,6 @@ class ChannelClient(CommonClient):
         
         return (is_html, reply_to_send)
 
-    def __get_factoid_path(self, name):
-        name = name.replace("/", "").replace(".", "").replace("\\", "")
-        return os.path.join(self.factoid_dir_path, name)
-
     async def run_command(self, event, recurse_count=0):
         results = []
         no_commands_found = True
