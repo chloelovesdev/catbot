@@ -19,21 +19,21 @@
     <nav class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0">
       <a class="navbar-brand col-sm-3 col-md-2 mr-0" href="#">Factoids</a>
       <input class="form-control form-control-dark w-100" type="text" placeholder="Search" aria-label="Search">
-      <!-- <ul class="navbar-nav px-3">
+      <ul class="navbar-nav px-3">
         <li class="nav-item text-nowrap">
-          <a class="nav-link" href="#">Sign out</a>
+          <a class="nav-link" href="#">Save</a>
         </li>
-      </ul> -->
+      </ul>
     </nav>
 
-    <div class="container-fluid">
-      <div class="row">
+    <div class="container-fluid flex-1">
+      <div class="row flex-1 h-100">
         <nav class="col-md-2 d-none d-md-block bg-light sidebar">
           <div class="sidebar-sticky">
             <ul class="nav flex-column">
               {% for factoid in factoids %}
               <li class="nav-item">
-                <a class="nav-link" href="/factoid/">
+                <a class="nav-link" href="/factoid/{{ factoid }}">
                   <span data-feather="file-text"></span>
                   {{ factoid }}
                 </a>
@@ -43,22 +43,17 @@
           </div>
         </nav>
 
-        <main role="main" class="col-md-9 ml-sm-auto col-lg-10 pt-3 px-4">
-          <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+        <main role="main" class="col-md-9 ml-sm-auto col-lg-10 p-0">
+          <!-- <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
             <h1 class="h2">Create New</h1>
             <div class="btn-toolbar mb-2 mb-md-0">
               <div class="btn-group mr-2">
                 <button class="btn btn-sm btn-success">Save</button>
-                <!-- <button class="btn btn-sm btn-outline-secondary">Export</button> -->
               </div>
-              <!-- <button class="btn btn-sm btn-outline-secondary dropdown-toggle">
-                <span data-feather="calendar"></span>
-                This week
-              </button> -->
             </div>
-          </div>
+          </div> -->
 
-          <h2>test</h2>
+          <textarea id="editor">{{ factoid_content }}</textarea>
         </main>
       </div>
     </div>
@@ -67,14 +62,19 @@
     ================================================== -->
     <!-- Placed at the end of the document so the pages load faster -->
     <script src="https://code.jquery.com/jquery-3.2.1.slim.min.js" integrity="sha384-KJ3o2DKtIkvYIK3UENzmM7KCkRr/rE9/Qpg6aAZGJwFDMVNA/GpGFF93hXpG5KkN" crossorigin="anonymous"></script>
-    <script>window.jQuery || document.write('<script src="../../assets/js/vendor/jquery-slim.min.js"><\/script>')</script>
-    <script src="../../assets/js/vendor/popper.min.js"></script>
-    <script src="../../dist/js/bootstrap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.12.9/umd/popper.min.js" integrity="sha384-ApNbgh9B+Y1QKtv3Rn7W3mgPxhU9K/ScQsAP7hUibX39j7fakFPskvXusvfa0b4Q" crossorigin="anonymous"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/js/bootstrap.min.js" integrity="sha384-JZR6Spejh4U02d8jOt6vLEHfe/JQGiRRSQQxSfFWpi1MquVdAyjUar5+76PVCmYl" crossorigin="anonymous"></script>
 
     <!-- Icons -->
     <script src="https://unpkg.com/feather-icons/dist/feather.min.js"></script>
     <script>
       feather.replace()
     </script>
+
+    <script src="/static/ace/ace.js" type="text/javascript" charset="utf-8"></script>
+    <script>
+      window.factoidContent = {{ factoid_content | safe }};
+    </script>
+    <script src="/static/factoids.js" type="text/javascript" charset="utf-8"></script>
   </body>
 </html>

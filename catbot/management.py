@@ -2,6 +2,7 @@ import aiohttp
 from aiohttp import web
 import os
 import aiohttp_jinja2, jinja2
+import json
 
 class ManagementServer:
     def __init__(self, client):
@@ -40,15 +41,30 @@ class ManagementServer:
     def get_factoids(self):
         return os.listdir(self.factoids_path)
 
+    def get_factoid(self, name):
+        name = name.replace(".", "").replace("\\", "").replace("//", "")
+        factoid_path = os.path.join(self.factoids_path, name)
+
+        if os.path.exists(factoid_path):
+            factoid_file = open(factoid_path)
+            result = factoid_file.read()
+            factoid_file.close()
+            if "textarea" in result:
+                return "Factoid contains illegal textarea"
+            return result
+        else:
+            return None
+
     @aiohttp_jinja2.template('factoids/index.html')
     async def index(self, request):
         return {
-            "factoids": self.get_factoids()
+            "factoids": self.get_factoids(),
+            "factoid_content": self.get_factoid("example")
         }
 
     @aiohttp_jinja2.template('factoids/index.html')
     async def factoid(self, request):
         return {
             "factoids": self.get_factoids(),
-            "factoid": "test"
+            "factoid_content": self.get_factoid(request.match_info["name"])
         }
