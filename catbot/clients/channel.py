@@ -183,93 +183,93 @@ class ChannelClient(CommonClient):
         return os.path.join(self.factoid_dir_path, name)
 
     async def run_command(self, event, recurse_count=0):
+        results = []
+        no_commands_found = True
+        
+        if len(event.body) == 0:
+            raise EmptyInput("Input was empty.")
+
+        # first, we check if any of our modules reported this as a command
+        for module, commands in self.commands.items():
+            for command in commands:
+                if event.body.startswith(command):
+                    # great we found a module with the command
+                    # buffer all outputs for further inputs
+                    buffering_event = ReplyBufferingEvent(self, event, buffer_replies=True)
+                    # actually fire the function in the module (buffering happens inside the module)
+                    await self.__send_to_module(module, buffering_event)
+                    # append the result to results output
+                    results += buffering_event.buffer
+                    # do not search factoids
+                    no_commands_found = False
+        
+        # there were no commands found, so we will execute this as a factoid
+        if no_commands_found:
+            factoid_command_split = event.body.split(" ")
+
+            # get the factoid from the db/fs
+            factoid_content = self.get_factoid_content(factoid_command_split[0])
+            if factoid_content == None:
+                raise CommandNotFound(f"Command not found for '{factoid_command_split[0]}'")
+                
+            # first check if a $NUM argument is required but not in the event body
+            for x in range(100):
+                if "$" + str(x) in factoid_content and len(factoid_command_split) <= x:
+                    raise EmptyInput(f"More input is required for '{factoid_command_split[0]}'")
+
+            # then replace all the arguments into the factoid we are going to run
+            # we escape quotation marks and wrap the input in quotes
+            for x in range(len(factoid_command_split)):
+                factoid_content = factoid_content.replace("$" + str(x), '"' + factoid_command_split[x].replace("\"", "\\\"") + '"')
+            
+            # replace any occurences of $@
+            # escape quotation marks, wrap in quotes
+            if len(factoid_command_split) > 1:
+                factoid_content = factoid_content.replace("$@", '"' + " ".join(factoid_command_split[1:]).replace("\"", "\\\"") + '"')
+            elif "$@" in factoid_content:
+                raise EmptyInput(f"Input required for {factoid_command_split[0]}")
+
+            # check if we are being redirected to another command,
+            # and if so we run and return the output of that command instead
+            if factoid_content.startswith("<cmd>"):
+                # print(f"Run command in factoid {factoid_content}")
+                copied_event = copy.deepcopy(event)
+                copied_event.body = factoid_content[len("<cmd>"):]
+                return await self.parse_and_run_command(copied_event, recurse_count + 1)
+            # in case anyone wanted to just write html factoids
+            elif factoid_content.startswith("<html>"):
+                return [{
+                    "type": "html",
+                    "body": factoid_content[len("<html>"):]
+                }]
+            # markdown factoids
+            elif factoid_content.startswith("<markdown>"):
+                return [{
+                    "type": "markdown",
+                    "body": factoid_content[len("<markdown>"):]
+                }]
+            # check if a custom content prefix is being used with a command that is
+            # registered with the bot
+            else:
+                for module, commands in self.commands.items():
+                    for command in commands:
+                        if factoid_content.startswith(f"<{command}>"):
+                            copied_event = copy.deepcopy(event)
+                            copied_event.body = factoid_content[len(command) + 2:]
+                            copied_event.body = command + " " + copied_event.body
+                            return await self.parse_and_run_command(copied_event, recurse_count + 1)
+
+            # fallback to just sending the factoid content as text
+            return [{
+                "type": "text",
+                "body": factoid_content
+            }]
+
+        return results
+
+    async def parse_and_run_command(self, event, recurse_count=0):
         if recurse_count == 10:
             raise RecursionLimitExceeded("You have exceeded the recursion limit.")
-
-        async def actually_run(event):
-            results = []
-            no_commands_found = True
-            
-            if len(event.body) == 0:
-                raise EmptyInput("Input was empty.")
-
-            # first, we check if any of our modules reported this as a command
-            for module, commands in self.commands.items():
-                for command in commands:
-                    if event.body.startswith(command):
-                        # great we found a module with the command
-                        # buffer all outputs for further inputs
-                        buffering_event = ReplyBufferingEvent(self, event, buffer_replies=True)
-                        # actually fire the function in the module (buffering happens inside the module)
-                        await self.__send_to_module(module, buffering_event)
-                        # append the result to results output
-                        results += buffering_event.buffer
-                        # do not search factoids
-                        no_commands_found = False
-            
-            # there were no commands found, so we will execute this as a factoid
-            if no_commands_found:
-                factoid_command_split = event.body.split(" ")
-
-                # get the factoid from the db/fs
-                factoid_content = self.get_factoid_content(factoid_command_split[0])
-                if factoid_content == None:
-                    raise CommandNotFound(f"Command not found for '{factoid_command_split[0]}'")
-                    
-                # first check if a $NUM argument is required but not in the event body
-                for x in range(100):
-                    if "$" + str(x) in factoid_content and len(factoid_command_split) <= x:
-                        raise EmptyInput(f"More input is required for '{factoid_command_split[0]}'")
-
-                # then replace all the arguments into the factoid we are going to run
-                # we escape quotation marks and wrap the input in quotes
-                for x in range(len(factoid_command_split)):
-                    factoid_content = factoid_content.replace("$" + str(x), '"' + factoid_command_split[x].replace("\"", "\\\"") + '"')
-                
-                # replace any occurences of $@
-                # escape quotation marks, wrap in quotes
-                if len(factoid_command_split) > 1:
-                    factoid_content = factoid_content.replace("$@", '"' + " ".join(factoid_command_split[1:]).replace("\"", "\\\"") + '"')
-                elif "$@" in factoid_content:
-                    raise EmptyInput(f"Input required for {factoid_command_split[0]}")
-
-                # check if we are being redirected to another command,
-                # and if so we run and return the output of that command instead
-                if factoid_content.startswith("<cmd>"):
-                    # print(f"Run command in factoid {factoid_content}")
-                    copied_event = copy.deepcopy(event)
-                    copied_event.body = factoid_content[len("<cmd>"):]
-                    return await self.run_command(copied_event, recurse_count + 1)
-                # in case anyone wanted to just write html factoids
-                elif factoid_content.startswith("<html>"):
-                    return [{
-                        "type": "html",
-                        "body": factoid_content[len("<html>"):]
-                    }]
-                # markdown factoids
-                elif factoid_content.startswith("<markdown>"):
-                    return [{
-                        "type": "markdown",
-                        "body": factoid_content[len("<markdown>"):]
-                    }]
-                # check if a custom content prefix is being used with a command that is
-                # registered with the bot
-                else:
-                    for module, commands in self.commands.items():
-                        for command in commands:
-                            if factoid_content.startswith(f"<{command}>"):
-                                copied_event = copy.deepcopy(event)
-                                copied_event.body = factoid_content[len(command) + 2:]
-                                copied_event.body = command + " " + copied_event.body
-                                return await self.run_command(copied_event, recurse_count + 1)
-
-                # fallback to just sending the factoid content as text
-                return [{
-                    "type": "text",
-                    "body": factoid_content
-                }]
-
-            return results
 
         # first of all, directly execute the commands that eat everything
         for module, commands in self.commands.items():
@@ -303,9 +303,9 @@ class ChannelClient(CommonClient):
             
             # only return results for the last command in the sequence
             if len(split_by_redirect) - 1 == count:
-                results = await actually_run(copied_event)
+                results = await self.run_command(copied_event, recurse_count=recurse_count)
             else:
-                previous_output = await actually_run(copied_event)
+                previous_output = await self.run_command(copied_event, recurse_count=recurse_count)
 
             count = count + 1
 
@@ -327,8 +327,12 @@ class ChannelClient(CommonClient):
 
             try:
                 # run all commands, outputs a list of concatenated replies which are consolidated
-                results = await self.run_command(copied_event)
+                results = await self.parse_and_run_command(copied_event)
                 is_html, reply_to_send = self.consolidate_replies(results)
+
+                # dont send empty strings
+                if reply_to_send.strip() == "":
+                    return
                 
                 send_result = None
                 if is_html:
