@@ -48,15 +48,6 @@
         </nav>
 
         <main role="main" class="col-md-9 ml-sm-auto col-lg-10 p-0">
-          <!-- <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
-            <h1 class="h2">Create New</h1>
-            <div class="btn-toolbar mb-2 mb-md-0">
-              <div class="btn-group mr-2">
-                <button class="btn btn-sm btn-success">Save</button>
-              </div>
-            </div>
-          </div> -->
-
           <div id="editor"></div>
         </main>
       </div>
@@ -71,11 +62,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/noty/3.1.4/noty.min.js" integrity="sha512-lOrm9FgT1LKOJRUXF3tp6QaMorJftUjowOWiDcG5GFZ/q7ukof19V0HKx/GWzXCdt9zYju3/KhBNdCLzK8b90Q==" crossorigin="anonymous"></script>
     
     <!-- Icons -->
-    <script src="https://unpkg.com/feather-icons/dist/feather.min.js"></script>
+    <script src="/static/feather.min.js"></script>
     <script>
       feather.replace()
     </script>
-    
+
     <script src="/static/ace/ace.js" type="text/javascript" charset="utf-8"></script>
     <script>
       window.factoidContent = {{ factoid_content | safe }};

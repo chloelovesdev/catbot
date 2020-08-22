@@ -55,8 +55,6 @@ async def main(entrypoint_file):
     parser = argparse.ArgumentParser(description='A matrix-nio bot with working E2EE.')
     parser.add_argument('bot_id', metavar='BOT_ID', type=str,
                        help='the bot id (use MAIN to start catbot in main mode)')
-    parser.add_argument('--room-id', dest='room_id', metavar='ROOM_ID', type=str,
-                       help='the room id to join', required=False)
 
     args = parser.parse_args()
     main_mode = args.bot_id == "MAIN"
