@@ -10,7 +10,7 @@ main_store_path = os.path.realpath(os.path.join(global_store_path, "MAIN"))
 if not os.path.isdir(main_store_path):
     os.mkdir(main_store_path)
 
-config_path = os.path.join(global_store_path, "MAIN", "config.json")
+config_path = os.path.join(main_store_path, "config.json")
 
 # give our config data
 bot_config = ConfigNode({})
