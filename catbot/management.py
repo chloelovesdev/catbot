@@ -15,6 +15,7 @@ class ManagementServer:
         self.app.router.add_routes([
             web.get('/', self.index),
             web.get('/factoid/{name}', self.factoid),
+            web.post('/factoid/{name}/save', self.factoid_save),
             web.static('/static', static_path)
         ])
 
@@ -49,11 +50,17 @@ class ManagementServer:
             factoid_file = open(factoid_path)
             result = factoid_file.read()
             factoid_file.close()
-            if "textarea" in result:
-                return "Factoid contains illegal textarea"
             return result
         else:
-            return None
+            return "Factoid not found."
+
+    def save_factoid(self, name, content):
+        name = name.replace(".", "").replace("\\", "").replace("//", "")
+        factoid_path = os.path.join(self.factoids_path, name)
+        factoid_file = open(factoid_path, "w")
+        factoid_file.write(content)
+        factoid_file.close()
+        return True
 
     @aiohttp_jinja2.template('factoids/index.html')
     async def index(self, request):
@@ -66,5 +73,13 @@ class ManagementServer:
     async def factoid(self, request):
         return {
             "factoids": self.get_factoids(),
-            "factoid_content": self.get_factoid(request.match_info["name"])
+            "factoid_content": json.dumps(self.get_factoid(request.match_info["name"])),
+            "factoid_name": json.dumps(request.match_info["name"])
         }
+
+    async def factoid_save(self, request):
+        post_data = await request.post()
+
+        return web.json_response({
+            "success": self.save_factoid(request.match_info["name"], post_data['content'])
+        })
