@@ -1,5 +1,5 @@
-from .common_client import CommonClient
-from .channel_client import ChannelClient
-from .main_client import MainClient
+from .common import CommonClient
+from .channel import ChannelClient
+from .main import MainClient
 
 __all__ = [ChannelClient, MainClient, CommonClient]

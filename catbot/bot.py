@@ -13,6 +13,7 @@ from nio import (AsyncClient, ClientConfig, DevicesError, Event,InviteEvent, Log
 from nio.log import logger_group
 
 from catbot.clients import (MainClient, CommonClient, ChannelClient)
+from catbot.management import ManagementServer
 
 async def run_client(client: CommonClient) -> None:
     await client.login()
@@ -27,10 +28,12 @@ async def run_client(client: CommonClient) -> None:
     
     if isinstance(client, MainClient):
         setup_cached_bots_list = client.setup_cached_bots()
+        management_server = ManagementServer(client)
         
         await asyncio.gather(
             # The order here IS significant! You have to register the task to trust
             # devices FIRST since it awaits the first sync
+            management_server.start(),
             after_first_sync_task,
             *setup_cached_bots_list,
             sync_forever_task

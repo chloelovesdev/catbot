@@ -271,7 +271,7 @@ class ChannelClient(CommonClient):
 
             return results
 
-        # first of all, execute the commands that eat everything
+        # first of all, directly execute the commands that eat everything
         for module, commands in self.commands.items():
             if isinstance(commands, dict):
                 for command, eat_everything in commands.items():
