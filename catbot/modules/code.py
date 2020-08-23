@@ -9,5 +9,8 @@ class Code(module.Module):
 
     @module.command("code", help="Prints in <pre> container")
     async def on_cmd_ping(self, event):
-        escaped_body = html.escape(event.body)
-        await event.reply_html(f"<pre>{escaped_body}</pre>")
+        try:
+            escaped_body = html.escape(event.stdin_data.decode("utf-8"))
+            event.reply_html(f"<pre>{escaped_body}</pre>")
+        except:
+            event.reply("Could not decode HTML input")

@@ -5,6 +5,7 @@ from nio import UploadError
 import os
 import tempfile
 import base64
+import time
 
 class Image(module.Module):
     @module.setup
@@ -13,21 +14,30 @@ class Image(module.Module):
 
     @module.command("image", help="Upload and send an image (base64)")
     async def on_cmd_image(self, event):
-        if not " " in event.body:
-            await event.reply("Incorrect usage: image <ext> <base64 data>")
-            return
-
-        body_split = event.body.strip().split(" ", 1)
+        extension = event.body.strip()
         
+        print("image started")
+        start_time = time.time()
         fp = tempfile.TemporaryFile()
-        fp.write(base64.b64decode(body_split[1]))
+        fp.write(event.stdin_data)
         fp.seek(0)
+        end_time = time.time()
+        duration = end_time - start_time
+        print(f"image write took {duration}s")
 
-        response, maybe_keys = await self.bot.upload(fp, f"image/{body_split[0]}", f"image.{body_split[0]}")
+        start_time = time.time()
+        response, maybe_keys = await self.bot.upload(fp, f"image/{extension}", f"image.{{extension}}")
         if isinstance(response, UploadError):
             await event.reply("Error occurred uploading the image.")
             return
+        end_time = time.time()
+        duration = end_time - start_time
+        print(f"upload took {duration}s")
             
         fp.close()
 
-        await self.bot.send_image(response.content_uri)
+        start_time = time.time()
+        self.bot.queue_image(response.content_uri)
+        end_time = time.time()
+        duration = end_time - start_time
+        print(f"send_image took {duration}s")

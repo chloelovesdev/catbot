@@ -14,6 +14,7 @@ from nio.log import logger_group
 
 from catbot.clients import (MainClient, CommonClient, ChannelClient)
 from catbot.management import ManagementServer
+from catbot.dispatcher import CommandDispatcher
 
 async def run_client(client: CommonClient) -> None:
     await client.login()
@@ -43,6 +44,7 @@ async def run_client(client: CommonClient) -> None:
             # The order here IS significant! You have to register the task to trust
             # devices FIRST since it awaits the first sync
             after_first_sync_task,
+            *client.dispatcher_tasks(),
             sync_forever_task
         )
 

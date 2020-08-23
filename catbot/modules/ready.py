@@ -3,4 +3,4 @@ from catbot import module
 class Ready(module.Module):
     @module.setup
     async def setup(self, event):
-        await event.reply("Bot is now ready")
+        event.reply("Bot is now ready")

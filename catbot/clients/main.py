@@ -124,7 +124,11 @@ class MainClient(CommonClient):
                 line = await std_to_read_from.readline()
                 # line = line.decode("ascii").rstrip()
                 if line:
-                    print(f"[{bot_id}] [{std}] {line}")
+                    try:
+                        print(f"[{bot_id}] [{std}] " + line.decode("utf-8").rstrip())
+                    except:
+                        print(f"[{bot_id}] [{std}] {line}")
+
                     if line.rstrip() == b"DEACTIVATEBOT":
                         print(f"Deleting bot on {std} with ID " + bot_id)
                         if std == "stdout":

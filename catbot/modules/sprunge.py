@@ -15,7 +15,7 @@ class Sprunge(module.Module):
     async def on_cmd_sprunge(self, event):
         async with aiohttp.ClientSession() as session:
             with async_timeout.timeout(10):
-                data = {"sprunge": event.body}
+                data = {"sprunge": event.stdin_data}
                 async with session.post("http://sprunge.us", data=data) as response:
                     sprunge_url = await response.text()
-                    await event.reply(sprunge_url.strip())
+                    event.reply(sprunge_url.strip())

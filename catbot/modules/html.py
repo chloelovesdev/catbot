@@ -7,4 +7,4 @@ class HTML(module.Module):
 
     @module.command("html", help="Prints with HTML")
     async def on_cmd_html(self, event):
-        await event.reply_html(event.body)
+        event.reply_html(event.stdin_data)

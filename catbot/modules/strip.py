@@ -9,4 +9,4 @@ class Strip(module.Module):
 
     @module.command("strip", help="Strips new lines and spaces from the start/end of the input")
     async def on_cmd_strip(self, event):
-        await event.reply(event.body.strip())
+        event.reply(event.stdin_data.strip())

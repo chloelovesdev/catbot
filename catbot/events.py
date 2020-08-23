@@ -6,13 +6,14 @@ class BotSetupEvent:
     pass
 
 class ReplyBufferingEvent:
-    def __init__(self, bot, original_event, buffer_replies=False):
+    def __init__(self, bot, original_event, stdin_data="", buffer_replies=False):
         self.original_event = original_event
         self.bot = bot
         self.buffer_replies = buffer_replies
+        self.stdin_data = stdin_data
         self.buffer = []
 
-    async def reply(self, message):
+    def reply(self, message):
         if self.buffer_replies:
             self.buffer.append({
                 "type": "text",
@@ -20,9 +21,9 @@ class ReplyBufferingEvent:
             })
             return True
 
-        return await self.bot.send_text(message)
+        return self.bot.queue_text(message)
 
-    async def reply_html(self, message):
+    def reply_html(self, message):
         if self.buffer_replies:
             self.buffer.append({
                 "type": "html",
@@ -30,9 +31,9 @@ class ReplyBufferingEvent:
             })
             return True
 
-        return await self.bot.send_html(message)
+        return self.bot.queue_html(message)
 
-    async def reply_markdown(self, message):
+    def reply_markdown(self, message):
         if self.buffer_replies:
             self.buffer.append({
                 "type": "markdown",
@@ -40,7 +41,7 @@ class ReplyBufferingEvent:
             })
             return True
 
-        return await self.bot.send_markdown(message)
+        return self.bot.queue_markdown(message)
 
     @property
     def body(self):

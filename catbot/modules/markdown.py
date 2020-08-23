@@ -6,5 +6,5 @@ class Markdown(module.Module):
         return ["markdown"]
 
     @module.command("markdown", help="Prints with markdown")
-    async def on_cmd_ping(self, event):
-        await event.reply_markdown(event.body)
+    async def on_cmd_markdown(self, event):
+        event.reply_markdown(event.stdin_data)

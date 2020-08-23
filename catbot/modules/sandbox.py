@@ -1,38 +1,51 @@
 import epicbox
 
 from catbot import module
+from catbot.sandbox.docker import DockerManager
 
 class Sandbox(module.Module):
     @module.setup
     async def setup(self, event):
-        epicbox.configure({
-            'python': {
-                'docker_image': 'python:3.6.5-alpine',
-                #'user': 'sandbox',
-                #'read_only': True,
-                'network_disabled': False,
-            }
-        })
+        self.manager = DockerManager()
 
         return [
-            "python"
+            "python",
+            "test"
         ]
 
-    @module.command("python", help="Executes python code.")
+    @module.command("python", help="Test python sandbox.")
     async def on_cmd_python(self, event):
-        files = [{'name': 'main.py', 'content': event.body.encode("utf-8")}]
-        limits = {'cputime': 20, 'memory': 64}
-        result = epicbox.run('python', 'python3 main.py', files=files, limits=limits)
+        sandbox = await self.manager.run(
+            image='python:3.6.5-alpine',
+            command="python3 main.py",
+            files=[{
+                "name": "main.py",
+                "content": event.body.encode("utf-8")
+            }],
+            stdin=event.stdin_data,
+            limits={
+                "memory": 64, # MB
+                "memory_swap": 64, # MB
+                "networking_disabled": False,
+                "cpu_quota": 60, # seconds
+                "processes": 5,
+                "ulimits": {
+                    "cpu": 20, # seconds
+                    "fsize": 10 # MB
+                }
+            }
+        )
 
-        print(len(result['stdout']))
-        if "stderr" in result and result["stderr"] != b'':
-            await event.reply("An error occurred while trying to run module\n\n" + result["stderr"].decode("utf-8"))
-        elif "stdout" in result and result["stdout"] != b'':
-            await event.reply(result["stdout"].decode("utf-8"))
-        elif result["timeout"]:
-            await event.reply("Command timed out")
-        elif result["oom_killed"]:
-            await event.reply("Command used too much memory")
-        elif "stdout" in result:
-            await event.reply("Command did not output anything.")
-            
+        if sandbox.log:
+            event.reply("".join(sandbox.log))
+        
+        if not sandbox.log:
+            event.reply("Error occurred (log not set)")
+        elif len(sandbox.log) == 0:
+            event.reply("Sandbox output was empty.")
+        elif sandbox.state['oom_killed']:
+            event.reply("Sandbox ran out of memory")
+        elif sandbox.state['exit_code'] != 0:
+            event.reply("Error, non-zero exit code: " + sandbox.state['exit_code'])
+
+        print(sandbox.state)

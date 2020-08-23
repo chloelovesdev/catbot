@@ -66,7 +66,7 @@ class ManagementServer:
     async def index(self, request):
         return {
             "factoids": self.get_factoids(),
-            "factoid_content": self.get_factoid("example")
+            "factoid_content": json.dumps(self.get_factoid("example"))
         }
 
     @aiohttp_jinja2.template('factoids/index.html')
