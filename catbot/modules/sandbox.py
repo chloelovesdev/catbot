@@ -9,8 +9,7 @@ class Sandbox(module.Module):
         self.manager = DockerManager()
 
         return [
-            "python",
-            "test"
+            "python"
         ]
 
     @module.command("python", help="Test python sandbox.")
