@@ -196,4 +196,5 @@ class ChannelClient(CommonClient):
         if not self.has_setup or room.room_id != self.bot_config.server.channel:
             return
 
+        # asyncio.ensure_future(self.command_dispatcher.maybe_run_commands(event))
         self.command_dispatcher.queue.append(event)

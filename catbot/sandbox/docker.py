@@ -6,6 +6,7 @@ import shlex
 import io
 import time
 import tarfile
+import asyncio
 
 import dateutil.parser
 
@@ -21,7 +22,7 @@ class DockerManager:
             "Name": self.get_new_uuid()
         })
 
-    async def run(self, image, command, persistent_volume=None, stdin="", files=[], limits={}):
+    async def run(self, image, command, persistent_volume=None, stdin=b"", files=[], limits={}):
         try:
             await self.docker.images.inspect(image)
         except DockerError as e:
@@ -53,7 +54,7 @@ class DockerSandbox:
 
         self.log = None
         self.container = None
-        self.output = b''
+        self.output = None
 
     async def destroy(self):
         pass
@@ -113,6 +114,8 @@ class DockerSandbox:
                     "AttachStdin": True,
                     "AttachStdout": True,
                     "AttachStderr": True,
+                    "OpenStdin": True,
+                    "StdinOnce": True,
                     "Tty": False,
                     "User": self.limits['user'],
                     "NetworkDisabled": self.limits['networking_disabled'],
@@ -123,11 +126,11 @@ class DockerSandbox:
                         "CpuQuota": self.limits['cpu_quota'] * 1000000, # microseconds
                         "OomKillDisable": False,
                         "Privileged": False,
-                        # "PidsLimit": self.limits['processes'],
-                        # "Ulimits": [
-                        #     {"Name": "cpu", "Soft": self.limits['ulimits']['cpu'], "Hard": self.limits['ulimits']['cpu']},
-                        #     {"Name": "fsize", "Soft": self.limits['ulimits']['fsize'] * 1024, "Hard": self.limits['ulimits']['fsize'] * 1024},
-                        # ]
+                        "PidsLimit": self.limits['processes'],
+                        "Ulimits": [
+                            {"Name": "cpu", "Soft": self.limits['ulimits']['cpu'], "Hard": self.limits['ulimits']['cpu']},
+                            {"Name": "fsize", "Soft": self.limits['ulimits']['fsize'] * 1024, "Hard": self.limits['ulimits']['fsize'] * 1024},
+                        ]
                     }
                 },
                 name=self.container_name,
@@ -138,19 +141,24 @@ class DockerSandbox:
 
         try:
             print(f"Opening websocket")
-            ws = await self.container.websocket(stdin=True, stdout=True, stderr=True, stream=True)
+            stdin_ws = await self.container.websocket(stdin=True, stdout=False, stderr=False, stream=True)
+            stdouterr_ws = await self.container.websocket(stdin=False, stdout=True, stderr=True, stream=True)
 
             print(f"Starting container")
             await self.container.start()
 
+            print("Sending stdin data")
+            await stdin_ws.send_bytes(stdin)
+            await stdin_ws.close()
+
             print("Web socket receive")
             while True:
-                msg = await ws.receive()
+                msg = await stdouterr_ws.receive()
 
                 if msg.type == aiohttp.WSMsgType.BINARY:
                     self.output += msg.data
                 elif msg.type == aiohttp.WSMsgType.CLOSE:
-                    await ws.close()
+                    await stdouterr_ws.close()
                     break
                 elif msg.type == aiohttp.WSMsgType.ERROR:
                     raise Exception("Docker websocket error")

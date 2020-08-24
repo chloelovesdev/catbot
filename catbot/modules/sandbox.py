@@ -14,9 +14,9 @@ class Sandbox(module.Module):
         ]
     
     def __reply_sandbox(self, event, sandbox):
-        if isinstance(sandbox.output, bytes):
+        if isinstance(sandbox.output, bytes) and len(sandbox.output) != 0:
             event.reply(sandbox.output)
-        elif sandbox.state['exit_code'] == 0 and not isinstance(sandbox.output, bytes):
+        elif sandbox.state['exit_code'] == 0 and (not isinstance(sandbox.output, bytes) or len(sandbox.output) == 0):
             event.reply("Command finished successfully with no output.")
         elif sandbox.state['oom_killed']:
             event.reply("Sandbox ran out of memory")
@@ -70,7 +70,7 @@ class Sandbox(module.Module):
                     "memory_swap": 256, # MB
                     "networking_disabled": False,
                     "cpu_quota": 60, # seconds
-                    "processes": 10,
+                    "processes": 20,
                     "user": "sandbox",
                     "ulimits": {
                         "cpu": 20, # seconds
