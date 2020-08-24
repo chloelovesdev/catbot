@@ -40,7 +40,14 @@ class ManagementServer:
         await self.runner.cleanup()
 
     def get_factoids(self):
-        return os.listdir(self.factoids_path)
+        all_factoids = os.listdir(self.factoids_path)
+        nonstate_factoids = []
+
+        for factoid in all_factoids:
+            if not factoid.startswith("state-"):
+                nonstate_factoids.append(factoid)
+
+        return nonstate_factoids
 
     def get_factoid(self, name):
         name = name.replace(".", "").replace("\\", "").replace("//", "")
@@ -66,7 +73,8 @@ class ManagementServer:
     async def index(self, request):
         return {
             "factoids": self.get_factoids(),
-            "factoid_content": json.dumps(self.get_factoid("example"))
+            "factoid_content": json.dumps(self.get_factoid("example")),
+            "factoid_name": "new"
         }
 
     @aiohttp_jinja2.template('factoids/index.html')

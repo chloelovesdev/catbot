@@ -23,10 +23,11 @@ class Image(module.Module):
 
         print(extension)
         response, maybe_keys = await self.bot.upload(fp, f"image/{extension}", f"image.{extension}")
+        fp.close()
+        
         if isinstance(response, UploadError):
             print(response)
             event.reply("Error occurred uploading the image. " + str(response))
             return
-            
-        fp.close()
+
         self.bot.queue_image(response.content_uri)

@@ -11,13 +11,6 @@ class Factoid(module.Module):
             "factoid get": True,
             "factoid set": True
         }
-        
-    def __set_factoid_content(self, name, content):
-        factoid_path = self.bot.get_factoid_path(name)
-        factoid_file = open(factoid_path, "w")
-        factoid_file.write(content)
-        factoid_file.close()
-        return True
 
     @module.command("factoid get", help="Get the content of a factoid")
     async def on_cmd_factoid_get(self, event):
@@ -43,7 +36,7 @@ class Factoid(module.Module):
         name = body_split[0]
         content = body_split[1]
 
-        if self.__set_factoid_content(name, content):
+        if self.bot.set_factoid_content(name, content):
             event.reply(f"Factoid {name} set!")
         else:
             event.reply(f"Failed saving factoid {name}!")

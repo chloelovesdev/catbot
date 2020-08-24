@@ -64,6 +64,68 @@ class CommandDispatcher:
 
         return (is_html, reply_to_send)
 
+    async def run_factoid(self, event, stdin_data=b"", recurse_count=0):
+        factoid_command_split = event.body.split(" ")
+
+        # get the factoid from the db/fs
+        factoid_content = self.client.get_factoid_content(factoid_command_split[0])
+        if factoid_content == None:
+            raise CommandNotFound(f"Command not found for '{factoid_command_split[0]}'")
+            
+        # first check if a $NUM argument is required but not in the event body
+        for x in range(100):
+            if "$" + str(x) in factoid_content and len(factoid_command_split) <= x:
+                raise EmptyInput(f"More input is required for '{factoid_command_split[0]}'")
+
+        # then replace all the arguments into the factoid we are going to run
+        # we escape quotation marks and wrap the input in quotes
+        for x in range(len(factoid_command_split)):
+            factoid_content = factoid_content.replace("$" + str(x), '"' + factoid_command_split[x].replace("\"", "\\\"") + '"')
+        
+        # replace any occurences of $@
+        # escape quotation marks, wrap in quotes
+        if len(factoid_command_split) > 1:
+            factoid_content = factoid_content.replace("$@", '"' + " ".join(factoid_command_split[1:]).replace("\"", "\\\"") + '"')
+        elif "$@" in factoid_content:
+            raise EmptyInput(f"Input required for {factoid_command_split[0]}")
+
+        if factoid_content.startswith("<html>") or factoid_content.startswith("[html]"):
+            return [{
+                "type": "html",
+                "body": factoid_content[len("<html>"):]
+            }]
+        # markdown factoids
+        elif factoid_content.startswith("<markdown>") or factoid_content.startswith("[markdown]"):
+            return [{
+                "type": "markdown",
+                "body": factoid_content[len("<markdown>"):]
+            }]
+
+        # check if we are being redirected to another command,
+        # and if so we run and return the output of that command instead
+        if factoid_content.startswith("<cmd>") or factoid_content.startswith("[cmd]"):
+            # print(f"Run command in factoid {factoid_content}")
+            copied_event = copy.deepcopy(event)
+            copied_event.body = factoid_content[len("<cmd>"):]
+            return await self.parse_and_run_command(copied_event, stdin_data, recurse_count + 1)
+        # in case anyone wanted to just write html factoids
+        # check if a custom content prefix is being used with a command that is
+        # registered with the bot
+        else:
+            for module, commands in self.client.commands.items():
+                for command in commands:
+                    if factoid_content.startswith(f"<{command}>") or factoid_content.startswith(f"[{command}]"):
+                        copied_event = copy.deepcopy(event)
+                        copied_event.body = factoid_content[len(command) + 2:]
+                        copied_event.body = command + " " + copied_event.body
+                        return await self.parse_and_run_command(copied_event, stdin_data, recurse_count + 1)
+
+        # fallback to just sending the factoid content as text
+        return [{
+            "type": "text",
+            "body": factoid_content
+        }]
+
     async def run_command(self, event, stdin_data=b"", recurse_count=0):
         results = []
         no_commands_found = True
@@ -93,65 +155,7 @@ class CommandDispatcher:
         
         # there were no commands found, so we will execute this as a factoid
         if no_commands_found:
-            factoid_command_split = event.body.split(" ")
-
-            # get the factoid from the db/fs
-            factoid_content = self.client.get_factoid_content(factoid_command_split[0])
-            if factoid_content == None:
-                raise CommandNotFound(f"Command not found for '{factoid_command_split[0]}'")
-                
-            # first check if a $NUM argument is required but not in the event body
-            for x in range(100):
-                if "$" + str(x) in factoid_content and len(factoid_command_split) <= x:
-                    raise EmptyInput(f"More input is required for '{factoid_command_split[0]}'")
-
-            # then replace all the arguments into the factoid we are going to run
-            # we escape quotation marks and wrap the input in quotes
-            for x in range(len(factoid_command_split)):
-                factoid_content = factoid_content.replace("$" + str(x), '"' + factoid_command_split[x].replace("\"", "\\\"") + '"')
-            
-            # replace any occurences of $@
-            # escape quotation marks, wrap in quotes
-            if len(factoid_command_split) > 1:
-                factoid_content = factoid_content.replace("$@", '"' + " ".join(factoid_command_split[1:]).replace("\"", "\\\"") + '"')
-            elif "$@" in factoid_content:
-                raise EmptyInput(f"Input required for {factoid_command_split[0]}")
-
-            # check if we are being redirected to another command,
-            # and if so we run and return the output of that command instead
-            if factoid_content.startswith("<cmd>") or factoid_content.startswith("[cmd]"):
-                # print(f"Run command in factoid {factoid_content}")
-                copied_event = copy.deepcopy(event)
-                copied_event.body = factoid_content[len("<cmd>"):]
-                return await self.parse_and_run_command(copied_event, stdin_data, recurse_count + 1)
-            # in case anyone wanted to just write html factoids
-            elif factoid_content.startswith("<html>") or factoid_content.startswith("[html]"):
-                return [{
-                    "type": "html",
-                    "body": factoid_content[len("<html>"):]
-                }]
-            # markdown factoids
-            elif factoid_content.startswith("<markdown>") or factoid_content.startswith("[markdown]"):
-                return [{
-                    "type": "markdown",
-                    "body": factoid_content[len("<markdown>"):]
-                }]
-            # check if a custom content prefix is being used with a command that is
-            # registered with the bot
-            else:
-                for module, commands in self.client.commands.items():
-                    for command in commands:
-                        if factoid_content.startswith(f"<{command}>") or factoid_content.startswith(f"[{command}]"):
-                            copied_event = copy.deepcopy(event)
-                            copied_event.body = factoid_content[len(command) + 2:]
-                            copied_event.body = command + " " + copied_event.body
-                            return await self.parse_and_run_command(copied_event, stdin_data, recurse_count + 1)
-
-            # fallback to just sending the factoid content as text
-            return [{
-                "type": "text",
-                "body": factoid_content
-            }]
+            return await self.run_factoid(event, stdin_data, recurse_count)
 
         return results
 
@@ -246,3 +250,10 @@ class MessageDispatcher:
                     await self.client.send_text(str(result))
 
             await asyncio.sleep(0.1)
+
+class CronDispatcher:
+    def __init__(self, client):
+        self.client = client
+    
+    async def start(self):
+        pass

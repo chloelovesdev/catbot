@@ -85,6 +85,17 @@ class ChannelClient(CommonClient):
         name = name.replace("/", "").replace(".", "").replace("\\", "")
         return os.path.join(self.factoid_dir_path, name)
 
+    def get_factoid_content_binary(self, name):
+        factoid_path = self.get_factoid_path(name)
+
+        if os.path.exists(factoid_path):
+            factoid_file = open(factoid_path, "rb")
+            content = factoid_file.read()
+            factoid_file.close()
+            return content
+        else:
+            return None
+            
     def get_factoid_content(self, name):
         factoid_path = self.get_factoid_path(name)
 
@@ -95,6 +106,20 @@ class ChannelClient(CommonClient):
             return content
         else:
             return None
+        
+    def set_factoid_content(self, name, content):
+        factoid_path = self.get_factoid_path(name)
+        factoid_file = open(factoid_path, "w")
+        factoid_file.write(content)
+        factoid_file.close()
+        return True
+        
+    def set_factoid_content_binary(self, name, content):
+        factoid_path = self.get_factoid_path(name)
+        factoid_file = open(factoid_path, "wb")
+        factoid_file.write(content)
+        factoid_file.close()
+        return True
 
     def load_modules(self):
         result = {}
@@ -195,6 +220,6 @@ class ChannelClient(CommonClient):
         # or if the setup hasn't completed.
         if not self.has_setup or room.room_id != self.bot_config.server.channel:
             return
-
+            
         # asyncio.ensure_future(self.command_dispatcher.maybe_run_commands(event))
         self.command_dispatcher.queue.append(event)

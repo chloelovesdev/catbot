@@ -4,22 +4,37 @@ editor.setTheme("ace/theme/monokai");
 var factoidCommandToMode = {
     "python": "ace/mode/python",
     "java": "ace/mode/java",
-    "html": "ace/mode/html",
-    "js": "ace/mode/javascript"
+    "js": "ace/mode/javascript",
+    "html": "ace/mode/html"
 };
 
+var modeSet = false;
 for(factoidCommand in factoidCommandToMode) {
     if(factoidContent.startsWith("<cmd>" + factoidCommand)
     || factoidContent.startsWith("[cmd]" + factoidCommand)
     || window.factoidContent.startsWith("<" + factoidCommand + ">")
     || window.factoidContent.startsWith("[" + factoidCommand + "]")) {
         editor.session.setMode(factoidCommandToMode[factoidCommand]);
+        modeSet = true;
+    }
+}
+
+if (!modeSet) {
+    for(factoidCommand in factoidCommandToMode) {
+        if(factoidContent.includes(factoidCommand)) {
+            editor.session.setMode(factoidCommandToMode[factoidCommand]);
+            break;
+        }
     }
 }
 
 editor.setValue(factoidContent, -1);
 
 $("#save").click(function() {
+    if(factoidName == "new") {
+        
+    }
+
     $.post("/factoid/" + factoidName + "/save", {
         content: editor.getValue()
     }, function(data) {

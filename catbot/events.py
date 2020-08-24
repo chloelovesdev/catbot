@@ -6,11 +6,12 @@ class BotSetupEvent:
     pass
 
 class ReplyBufferingEvent:
-    def __init__(self, bot, original_event, stdin_data=b"", buffer_replies=False):
+    def __init__(self, bot, original_event, stdin_data=b"", state_file=None, buffer_replies=False):
         self.original_event = original_event
         self.bot = bot
         self.buffer_replies = buffer_replies
         self.stdin_data = stdin_data
+        self.state_file = None
         self.buffer = []
 
     def reply(self, message):
