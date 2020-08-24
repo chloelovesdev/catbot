@@ -10,7 +10,8 @@ class Sandbox(module.Module):
 
         return [
             "python",
-            "java"
+            "java",
+            "js"
         ]
     
     def __reply_sandbox(self, event, sandbox):
@@ -25,10 +26,10 @@ class Sandbox(module.Module):
         elif not isinstance(sandbox.output, bytes):
             event.reply("Error, sandbox output was never set")
 
-    @module.command("python", help="Sandboxed python.")
+    @module.command("python", help="Python sandboxed with docker.")
     async def on_cmd_python(self, event):
         sandbox = await self.manager.run(
-            image='python:3.6.5-alpine',
+            image='catbot/python:3.7.9-slim',
             command="python3 main.py",
             files=[{
                 "name": "main.py",
@@ -37,7 +38,7 @@ class Sandbox(module.Module):
             stdin=event.stdin_data,
             limits={
                 "memory": 64, # MB
-                "user": "root",
+                "user": "sandbox",
                 "memory_swap": 64, # MB
                 "networking_disabled": False,
                 "cpu_quota": 60, # seconds
@@ -51,13 +52,39 @@ class Sandbox(module.Module):
 
         self.__reply_sandbox(event, sandbox)
 
-    @module.command("java", help="Sandboxed java.")
+    @module.command("js", help="node.js sandboxed with docker.")
+    async def on_cmd_js(self, event):
+        sandbox = await self.manager.run(
+            image='catbot/node:stretch-slim',
+            command="node main.js",
+            files=[{
+                "name": "main.js",
+                "content": event.body.encode("utf-8")
+            }],
+            stdin=event.stdin_data,
+            limits={
+                "memory": 128, # MB
+                "user": "sandbox",
+                "memory_swap": 64, # MB
+                "networking_disabled": False,
+                "cpu_quota": 60, # seconds
+                "processes": 20,
+                "ulimits": {
+                    "cpu": 20, # seconds
+                    "fsize": 10 # MB
+                }
+            }
+        )
+
+        self.__reply_sandbox(event, sandbox)
+
+    @module.command("java", help="Java 16 sandboxed with docker.")
     async def on_cmd_java(self, event):
         workdir_volume = await self.manager.get_new_volume()
 
         try:
             sandbox = await self.manager.run(
-                image='catbot/java/16-slim:latest',
+                image='catbot/java:16-slim',
                 command="javac Factoid.java",
                 persistent_volume=workdir_volume,
                 files=[{

@@ -119,19 +119,19 @@ class CommandDispatcher:
 
             # check if we are being redirected to another command,
             # and if so we run and return the output of that command instead
-            if factoid_content.startswith("<cmd>"):
+            if factoid_content.startswith("<cmd>") or factoid_content.startswith("[cmd]"):
                 # print(f"Run command in factoid {factoid_content}")
                 copied_event = copy.deepcopy(event)
                 copied_event.body = factoid_content[len("<cmd>"):]
                 return await self.parse_and_run_command(copied_event, stdin_data, recurse_count + 1)
             # in case anyone wanted to just write html factoids
-            elif factoid_content.startswith("<html>"):
+            elif factoid_content.startswith("<html>") or factoid_content.startswith("[html]"):
                 return [{
                     "type": "html",
                     "body": factoid_content[len("<html>"):]
                 }]
             # markdown factoids
-            elif factoid_content.startswith("<markdown>"):
+            elif factoid_content.startswith("<markdown>") or factoid_content.startswith("[markdown]"):
                 return [{
                     "type": "markdown",
                     "body": factoid_content[len("<markdown>"):]
@@ -141,7 +141,7 @@ class CommandDispatcher:
             else:
                 for module, commands in self.client.commands.items():
                     for command in commands:
-                        if factoid_content.startswith(f"<{command}>"):
+                        if factoid_content.startswith(f"<{command}>") or factoid_content.startswith(f"[{command}]"):
                             copied_event = copy.deepcopy(event)
                             copied_event.body = factoid_content[len(command) + 2:]
                             copied_event.body = command + " " + copied_event.body

@@ -4,11 +4,15 @@ editor.setTheme("ace/theme/monokai");
 var factoidCommandToMode = {
     "python": "ace/mode/python",
     "java": "ace/mode/java",
-    "html": "ace/mode/html"
+    "html": "ace/mode/html",
+    "js": "ace/mode/javascript"
 };
 
 for(factoidCommand in factoidCommandToMode) {
-    if(factoidContent.startsWith("<cmd>" + factoidCommand) || window.factoidContent.startsWith("<" + factoidCommand + ">")) {
+    if(factoidContent.startsWith("<cmd>" + factoidCommand)
+    || factoidContent.startsWith("[cmd]" + factoidCommand)
+    || window.factoidContent.startsWith("<" + factoidCommand + ">")
+    || window.factoidContent.startsWith("[" + factoidCommand + "]")) {
         editor.session.setMode(factoidCommandToMode[factoidCommand]);
     }
 }

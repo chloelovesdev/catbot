@@ -154,7 +154,7 @@ class DockerSandbox:
             print("Web socket receive")
             while True:
                 msg = await stdouterr_ws.receive()
-
+                
                 if msg.type == aiohttp.WSMsgType.BINARY:
                     self.output += msg.data
                 elif msg.type == aiohttp.WSMsgType.CLOSE:
