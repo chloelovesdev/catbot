@@ -15,7 +15,12 @@ class DockerManager:
     def get_new_uuid(self):
         return "catbot-" + str(uuid.uuid4())
 
-    async def run(self, image, command, stdin="", files=[], limits={}):
+    async def get_new_volume(self):
+        return await self.docker.volumes.create({
+            "Name": self.get_new_uuid()
+        })
+
+    async def run(self, image, command, persistent_volume=None, stdin="", files=[], limits={}):
         try:
             await self.docker.images.inspect(image)
         except DockerError as e:
@@ -25,21 +30,23 @@ class DockerManager:
                 raise e
 
         return await DockerSandbox(
-                    manager=self,
-                    image=image,
-                    limits=limits
-                ).run(
-                    command=command,
-                    stdin=stdin,
-                    files=files
-                )
+                manager=self,
+                image=image,
+                limits=limits,
+                persistent_volume=persistent_volume
+            ).run(
+                command=command,
+                stdin=stdin,
+                files=files
+            )
 
 class DockerSandbox:
-    def __init__(self, manager, image, limits, working_directory="/sandbox"):
+    def __init__(self, manager, image, limits, persistent_volume=None, working_directory="/sandbox"):
         self.manager = manager
         self.image = image
         self.limits = limits
         self.working_directory = working_directory
+        self.persistent_volume = persistent_volume
 
         self.container_name = manager.get_new_uuid()
 
@@ -89,6 +96,10 @@ class DockerSandbox:
     async def run(self, command, stdin, files=[]):
         print(f"[{self.container_name}] Creating container with command '{command}'")
 
+        binds = []
+        if self.persistent_volume != None:
+            binds = [f"{self.persistent_volume.name}:{self.working_directory}:rw"]
+
         # https://docs.docker.com/engine/api/v1.24/
         self.container = await self.manager.docker.containers.create_or_replace(
                 config = {
@@ -99,24 +110,27 @@ class DockerSandbox:
                     "AttachStdout": True,
                     "AttachStderr": True,
                     "Tty": False,
+                    "User": self.limits['user'],
                     "NetworkDisabled": self.limits['networking_disabled'],
                     "HostConfig": {
+                        "Binds": binds,
                         "Memory": self.limits['memory'] * 1024 * 1024, # bytes
                         "MemorySwap": self.limits['memory_swap'] * 1024 * 1024, # bytes
                         "CpuQuota": self.limits['cpu_quota'] * 1000000, # microseconds
                         "OomKillDisable": False,
                         "Privileged": False,
-                        "PidsLimit": self.limits['processes'],
-                        "Ulimits": [
-                            {"Name": "cpu", "Soft": self.limits['ulimits']['cpu'], "Hard": self.limits['ulimits']['cpu']},
-                            {"Name": "fsize", "Soft": self.limits['ulimits']['fsize'], "Hard": self.limits['ulimits']['fsize']},
-                        ]
+                        # "PidsLimit": self.limits['processes'],
+                        # "Ulimits": [
+                        #     {"Name": "cpu", "Soft": self.limits['ulimits']['cpu'], "Hard": self.limits['ulimits']['cpu']},
+                        #     {"Name": "fsize", "Soft": self.limits['ulimits']['fsize'] * 1024, "Hard": self.limits['ulimits']['fsize'] * 1024},
+                        # ]
                     }
                 },
                 name=self.container_name,
             )
 
-        await self.__write_files(files)
+        if len(files) > 0:
+            await self.__write_files(files)
 
         try:
             print(f"Opening websocket")
@@ -125,7 +139,9 @@ class DockerSandbox:
             print(f"Starting container")
             await self.container.start()
 
+            print("Web socket receive")
             resp = await ws.receive()
+            print(resp)
             await ws.close()
 
             print(f"Awaiting log")

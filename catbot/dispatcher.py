@@ -2,6 +2,7 @@ import time
 import asyncio
 import copy
 import re
+import traceback
 
 from catbot.events import ReplyBufferingEvent
 
