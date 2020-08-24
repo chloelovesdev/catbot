@@ -17,12 +17,15 @@ class Image(module.Module):
         extension = event.body.strip()
         
         fp = tempfile.TemporaryFile()
+        print(len(event.stdin_data))
         fp.write(event.stdin_data)
         fp.seek(0)
 
-        response, maybe_keys = await self.bot.upload(fp, f"image/{extension}", f"image.{{extension}}")
+        print(extension)
+        response, maybe_keys = await self.bot.upload(fp, f"image/{extension}", f"image.{extension}")
         if isinstance(response, UploadError):
-            await event.reply("Error occurred uploading the image.")
+            print(response)
+            event.reply("Error occurred uploading the image. " + str(response))
             return
             
         fp.close()

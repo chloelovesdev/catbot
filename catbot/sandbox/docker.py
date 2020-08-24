@@ -1,4 +1,5 @@
 import aiodocker
+import aiohttp
 
 import uuid
 import shlex
@@ -52,6 +53,7 @@ class DockerSandbox:
 
         self.log = None
         self.container = None
+        self.output = b''
 
     async def destroy(self):
         pass
@@ -94,6 +96,8 @@ class DockerSandbox:
         }
 
     async def run(self, command, stdin, files=[]):
+        self.output = b''
+
         print(f"[{self.container_name}] Creating container with command '{command}'")
 
         binds = []
@@ -140,9 +144,17 @@ class DockerSandbox:
             await self.container.start()
 
             print("Web socket receive")
-            resp = await ws.receive()
-            print(resp)
-            await ws.close()
+            while True:
+                msg = await ws.receive()
+
+                if msg.type == aiohttp.WSMsgType.BINARY:
+                    self.output += msg.data
+                elif msg.type == aiohttp.WSMsgType.CLOSE:
+                    await ws.close()
+                    break
+                elif msg.type == aiohttp.WSMsgType.ERROR:
+                    raise Exception("Docker websocket error")
+                    break
 
             print(f"Awaiting log")
             self.log = await self.container.log(stdout=True, stderr=True)

@@ -14,15 +14,15 @@ class Sandbox(module.Module):
         ]
     
     def __reply_sandbox(self, event, sandbox):
-        if sandbox.log:
-            event.reply("".join(sandbox.log))
-        elif sandbox.state['exit_code'] == 0 and sandbox.log != None:
+        if isinstance(sandbox.output, bytes):
+            event.reply(sandbox.output)
+        elif sandbox.state['exit_code'] == 0 and not isinstance(sandbox.output, bytes):
             event.reply("Command finished successfully with no output.")
         elif sandbox.state['oom_killed']:
             event.reply("Sandbox ran out of memory")
         elif sandbox.state['exit_code'] != 0:
             event.reply("Error, non-zero exit code: " + str(sandbox.state['exit_code']))
-        elif sandbox.log == None:
+        elif not isinstance(sandbox.output, bytes):
             event.reply("Error, sandbox output was never set")
 
     @module.command("python", help="Sandboxed python.")

@@ -64,7 +64,7 @@ class CommandDispatcher:
 
         return (is_html, reply_to_send)
 
-    async def run_command(self, event, stdin_data="", recurse_count=0):
+    async def run_command(self, event, stdin_data=b"", recurse_count=0):
         results = []
         no_commands_found = True
         
@@ -155,7 +155,7 @@ class CommandDispatcher:
 
         return results
 
-    async def parse_and_run_command(self, event, stdin_data="", recurse_count=0):
+    async def parse_and_run_command(self, event, stdin_data=b"", recurse_count=0):
         if recurse_count == 10:
             raise RecursionLimitExceeded("You have exceeded the recursion limit.")
 

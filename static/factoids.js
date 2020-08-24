@@ -1,10 +1,22 @@
 var editor = ace.edit("editor");
 editor.setTheme("ace/theme/monokai");
-editor.session.setMode("ace/mode/python");
-editor.setValue(window.factoidContent, -1);
+
+var factoidCommandToMode = {
+    "python": "ace/mode/python",
+    "java": "ace/mode/java",
+    "html": "ace/mode/html"
+};
+
+for(factoidCommand in factoidCommandToMode) {
+    if(factoidContent.startsWith("<cmd>" + factoidCommand) || window.factoidContent.startsWith("<" + factoidCommand + ">")) {
+        editor.session.setMode(factoidCommandToMode[factoidCommand]);
+    }
+}
+
+editor.setValue(factoidContent, -1);
 
 $("#save").click(function() {
-    $.post("/factoid/" + window.factoidName + "/save", {
+    $.post("/factoid/" + factoidName + "/save", {
         content: editor.getValue()
     }, function(data) {
         console.log(data)
