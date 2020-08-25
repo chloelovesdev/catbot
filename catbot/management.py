@@ -3,6 +3,7 @@ from aiohttp import web
 import os
 import aiohttp_jinja2, jinja2
 import json
+from catbot.clients import TestingChannelClient
 
 class ManagementServer:
     def __init__(self, client):
@@ -11,11 +12,13 @@ class ManagementServer:
         print(f"Static folder: {static_path}")
 
         self.client = client
+
         self.app = web.Application()
         self.app.router.add_routes([
             web.get('/', self.index),
             web.get('/factoid/{name}', self.factoid),
             web.post('/factoid/{name}/save', self.factoid_save),
+            web.post('/test', self.factoid_test),
             web.static('/static', static_path)
         ])
 
@@ -47,6 +50,7 @@ class ManagementServer:
             if not factoid.startswith("state-"):
                 nonstate_factoids.append(factoid)
 
+        nonstate_factoids.sort()
         return nonstate_factoids
 
     def get_factoid(self, name):
@@ -71,19 +75,34 @@ class ManagementServer:
 
     @aiohttp_jinja2.template('factoids/index.html')
     async def index(self, request):
+        factoids = self.get_factoids()
+
         return {
-            "factoids": self.get_factoids(),
+            "factoids": factoids,
+            "factoids_json": json.dumps(factoids),
             "factoid_content": json.dumps(self.get_factoid("example")),
-            "factoid_name": "new"
+            "factoid_name": json.dumps("new")
         }
 
     @aiohttp_jinja2.template('factoids/index.html')
     async def factoid(self, request):
+        factoids = self.get_factoids()
+
         return {
-            "factoids": self.get_factoids(),
+            "factoids": factoids,
+            "factoids_json": json.dumps(factoids),
             "factoid_content": json.dumps(self.get_factoid(request.match_info["name"])),
             "factoid_name": json.dumps(request.match_info["name"])
         }
+        
+    async def factoid_test(self, request):
+        factoids = self.get_factoids()
+        post_data = await request.post()
+
+        testing_client = TestingChannelClient(self.client.global_store_path)
+        output = await testing_client.run_testing_command(post_data['content'])
+
+        return web.json_response(output)
 
     async def factoid_save(self, request):
         post_data = await request.post()

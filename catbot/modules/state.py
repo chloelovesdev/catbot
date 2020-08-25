@@ -9,7 +9,8 @@ class State(module.Module):
     async def setup(self, event):
         return [
             "state get",
-            "state set"
+            "state set",
+            "state reset"
         ]
 
     @module.command("state get", help="Gets state from file")
@@ -28,3 +29,9 @@ class State(module.Module):
             event.reply(stdin_data_split[1])
         else:
             event.reply("Setting state requires first line as input to state and data to forward.")
+
+    @module.command("state reset", help="Saves state from the first line of input then sends the rest")
+    async def on_cmd_state_reset(self, event):
+        body = event.body.strip()
+        self.bot.set_factoid_content_binary("state-" + body, b"uninitialized")
+        event.reply(f"Resetted state for '{body}'")

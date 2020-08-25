@@ -105,6 +105,77 @@ body {
   font-size: 16px;
 }
 
+#test-output {
+  width: 100%;
+  background: rgba(52, 58, 64, 1);
+  height: 100%;
+  top: 41px;
+  /* position: fixed; */
+  height: 25vh;
+  z-index: 50;
+  padding: 20px;
+  overflow-y: scroll;
+  display: none;
+}
+
+#test-output .robot {
+  background: url(/static/robot.jpg);
+  background-size: cover;
+  content: " ";
+  display: block;
+  border-radius: 50px;
+  width: 50px;
+  height: 50px;
+  flex: 0 0 auto;
+}
+
+#test-output .wrapper {
+  margin-left: 20px;
+  margin-top: 5px;
+}
+
+#test-output .name {
+  font-size: 16px;
+  padding-left: 5px;
+  color: cyan;
+}
+
+#test-output .line { 
+  padding: 5px;
+  color: white;
+  font-size: 16px;
+}
+
+.line-image img {
+  width: 50%;
+}
+
+#test-output.test-visible {
+  display: flex;
+}
+
+#test-output.test-visible + #editor {
+  height: 70vh;
+}
+
+#test-close {
+  color: white;
+  position: absolute;
+  right: 30px;
+  cursor: pointer;
+}
+
+#test-close .feather {
+  width: 30px;
+  height: 30px;
+}
+
+.line-html pre {
+  color: white;
+  background: gray;
+  padding: 15px;
+}
+
 /*
  * Editor
  */

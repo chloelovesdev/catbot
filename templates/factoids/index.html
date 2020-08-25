@@ -19,13 +19,13 @@
   <body>
     <nav class="navbar navbar-dark sticky-top bg-dark flex-md-nowrap p-0">
       <a class="navbar-brand col-sm-3 col-md-2 mr-0" href="#">Factoids</a>
-      <input class="form-control form-control-dark w-100" type="text" placeholder="Search" aria-label="Search">
+      <input class="form-control form-control-dark w-100" type="text" placeholder="Run command..." id="command-input" aria-label="Run command...">
       <ul class="navbar-nav">
+        <li class="nav-item text-nowrap bg-info px-3">
+          <a class="nav-link" href="#" id="test">Save and Test</a>
+        </li>
         <li class="nav-item text-nowrap bg-danger px-3">
           <a class="nav-link" href="/" id="new">New</a>
-        </li>
-        <li class="nav-item text-nowrap bg-info px-3">
-          <a class="nav-link" href="#" id="test">Test</a>
         </li>
         <li class="nav-item text-nowrap bg-success px-3">
           <a class="nav-link" href="#" id="save">Save</a>
@@ -51,8 +51,40 @@
         </nav>
 
         <main role="main" class="col-md-9 ml-sm-auto col-lg-10 p-0">
+          <div id="test-output">
+            <div id="test-close">
+              <span data-feather="x-circle"></span>
+            </div>
+            <div class="robot"></div>
+            <div class="wrapper">
+              <div class="name">bot</div>
+              <div id="test-output-lines">
+      
+              </div>
+            </div>
+          </div>
           <div id="editor"></div>
         </main>
+      </div>
+    </div>
+
+    <div class="modal" tabindex="-1" role="dialog" id="save-new-factoid">
+      <div class="modal-dialog" role="document">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Factoid name</h5>
+            <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+              <span aria-hidden="true">&times;</span>
+            </button>
+          </div>
+          <div class="modal-body">
+            <p>To save the factoid, you must give it a name. Please enter one:</p>
+            <input type="text" id="factoid_name" class="form-control"/>
+          </div>
+          <div class="modal-footer">
+            <button type="button" class="btn btn-primary" id="new-modal-save">Save changes</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -74,6 +106,7 @@
     <script>
       window.factoidContent = {{ factoid_content | safe }};
       window.factoidName = {{ factoid_name | safe }};
+      window.factoids = {{ factoids_json | safe }};
     </script>
     <script src="/static/factoids.js" type="text/javascript" charset="utf-8"></script>
   </body>

@@ -216,8 +216,8 @@ class CommandDispatcher:
                     self.client.queue_html(reply_to_send)
                 else:
                     self.client.queue_text(reply_to_send)
+                print("Execution finished")
             except (CommandNotFound, RecursionLimitExceeded, EmptyInput) as e:
-                traceback.print_exc()
                 self.client.queue_text("An error occurred. " + str(e))
         else:
             await self.client.send_to_all_modules(event)

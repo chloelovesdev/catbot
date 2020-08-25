@@ -30,16 +30,13 @@ if (!modeSet) {
 
 editor.setValue(factoidContent, -1);
 
-$("#save").click(function() {
-    if(factoidName == "new") {
-        
-    }
-
+function saveCurrentFactoid(successCallback) {
     $.post("/factoid/" + factoidName + "/save", {
         content: editor.getValue()
     }, function(data) {
         console.log(data)
         if(data.success) {
+            successCallback();
             new Noty({
               text: "Successfully saved factoid.",
               timeout: 5000,
@@ -57,4 +54,65 @@ $("#save").click(function() {
             }).show();
         }
     });
+}
+
+$("#new-modal-save").click(function() {
+    window.factoidName = $("#factoid_name").val();
+    saveCurrentFactoid(function() {
+        window.location.href = "/factoid/" + factoidName;
+    });
+});
+
+$("#save").click(function() {
+    if(factoidName == "new") {
+        $("#save-new-factoid").modal();
+        return;
+    }
+
+    saveCurrentFactoid();
+});
+
+$("#test").click(function() {
+    if(factoidName == "new") {
+        $("#save-new-factoid").modal();
+        return;
+    }
+
+    saveCurrentFactoid();
+
+    input_command = $("#command-input").val()
+    if(input_command == "") {
+        input_command = "!" + factoidName;
+        $("#command-input").val(input_command);
+    }
+
+    $("#test-output").addClass("test-visible");
+    $("#test-output-lines").html("<div class=\"line line-text\">Running...</div>");
+
+    $.post("/test", {
+        content: input_command
+    }, function(data) {
+        console.log(data);
+        $("#test-output-lines").html("");
+        if(data.length == 0) {
+            $("#test-output-lines").html("<div class=\"line line-text\">Output from server was empty</div>");
+            return;
+        }
+
+        for (i = 0; i < data.length; i++) {
+            var outputLine = data[i];
+            if (outputLine["type"] == "text") {
+                var lineEscaped = outputLine["body"].replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/(?:\r\n|\r|\n)/g, '<br>');
+                $("<div class=\"line line-text\">" + lineEscaped + "</div>").appendTo("#test-output-lines");
+            } else if(outputLine["type"] == "image") {
+                $("<div class=\"line line-image\"><img src=\"" + outputLine['url'] + "\" alt=\"" + outputLine['body'] + "\" /></div>").appendTo("#test-output-lines");
+            } else if(outputLine["type"] == "html") {
+                $("<div class=\"line line-html\">" + outputLine['body'] + "</div>").appendTo("#test-output-lines");
+            }
+        }
+    });
+});
+
+$("#test-close").click(function() {
+    $("#test-output").removeClass("test-visible");
 });
