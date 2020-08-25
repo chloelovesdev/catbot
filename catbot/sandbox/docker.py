@@ -99,7 +99,7 @@ class DockerSandbox:
     async def run(self, command, stdin, files=[]):
         self.output = b''
 
-        print(f"[{self.container_name}] Creating container with command '{command}'")
+        print(f"[{self.container_name}] Creating Docker container")
 
         binds = []
         if self.persistent_volume != None:
@@ -140,18 +140,15 @@ class DockerSandbox:
             await self.__write_files(files)
 
         try:
-            print(f"Opening websocket")
             stdin_ws = await self.container.websocket(stdin=True, stdout=False, stderr=False, stream=True)
             stdouterr_ws = await self.container.websocket(stdin=False, stdout=True, stderr=True, stream=True)
 
-            print(f"Starting container")
+            print(f"[{self.container_name}] Starting Docker container")
             await self.container.start()
 
-            print("Sending stdin data")
             await stdin_ws.send_bytes(stdin)
             await stdin_ws.close()
 
-            print("Web socket receive")
             while True:
                 msg = await stdouterr_ws.receive()
                 
@@ -164,14 +161,17 @@ class DockerSandbox:
                     raise Exception("Docker websocket error")
                     break
 
-            print(f"Awaiting log")
             self.log = await self.container.log(stdout=True, stderr=True)
             self.state = await self.inspect()
         except Exception as e:
-            print(f"Error occurred")
             raise e
         finally:
-            print(f"Removing container")
             await self.container.delete(force=True)
+
+        if self.state and 'duration' in self.state:
+            print(f"[{self.container_name}] Duration:", self.state['duration'])
+        if self.state and 'exit_code' in self.state:
+            print(f"[{self.container_name}] Exit code:", self.state['exit_code'])
+        print(f"[{self.container_name}] Returning from Docker container")
 
         return self

@@ -72,15 +72,16 @@ class TestingChannelClient(ChannelClient):
     async def run_testing_command(self, command):
         if not self.has_setup:
             await self.room_setup()
+
         event = RoomMessageText.from_dict({
-                'room_id': '#testing:loves.shitposting.chat',
+                'room_id': '#testing:bot',
                 'type': 'm.room.message',
                 'content': {
                     'msgtype': 'm.text',
                     'body': command
                 },
-                'event_id': '$swGjH1m9sPxavMzYwOE-9iOa-nVYXfHNnEyrCN7CaDA',
-                'sender': '@tester:loves.shitposting.chat',
+                'event_id': 'testingevent',
+                'sender': '@tester:bot',
                 'origin_server_ts': int(time.time())
             })
         await self.command_dispatcher.maybe_run_commands(event)

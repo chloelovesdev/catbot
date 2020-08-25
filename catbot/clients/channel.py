@@ -28,7 +28,7 @@ class ChannelClient(CommonClient):
     def __init__(self, global_store_path, bot_id):
         super().__init__(global_store_path=global_store_path, bot_id=bot_id)
 
-        print("Channel client woop")
+        print("Channel client starting")
         self.add_event_callback(self.cb_maybe_run_commands, RoomMessageText)
 
         if not self.bot_config.command_prefix:
@@ -127,7 +127,7 @@ class ChannelClient(CommonClient):
         result = {}
 
         path_to_commands = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "modules"))
-        print(path_to_commands)
+        print("Found path to modules: " + path_to_commands)
 
         for fname in os.listdir(path_to_commands):
             path = os.path.join(path_to_commands, fname)
@@ -220,7 +220,7 @@ class ChannelClient(CommonClient):
     async def cb_maybe_run_commands(self, room: MatrixRoom, event: RoomMessageText):
         # dont use anything thats not from the bot's channel,
         # or if the setup hasn't completed.
-        if not self.has_setup or room.room_id != self.bot_config.server.channel:
+        if not self.has_setup or room.room_id != self.bot_config.server.channel or self.bot_config.server.user_id == event.sender:
             return
             
         # asyncio.ensure_future(self.command_dispatcher.maybe_run_commands(event))
