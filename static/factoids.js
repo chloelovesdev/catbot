@@ -69,7 +69,9 @@ $("#save").click(function() {
         return;
     }
 
-    saveCurrentFactoid();
+    saveCurrentFactoid(function() {
+        console.log("Successfully saved.")
+    });
 });
 
 $("#test").click(function() {
@@ -78,7 +80,9 @@ $("#test").click(function() {
         return;
     }
 
-    saveCurrentFactoid();
+    saveCurrentFactoid(function() {
+        console.log("Successfully saved.")
+    });
 
     input_command = $("#command-input").val()
     if(input_command == "") {

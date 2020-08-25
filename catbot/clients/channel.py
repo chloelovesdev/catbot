@@ -22,7 +22,7 @@ from catbot import module
 
 from catbot.clients import CommonClient
 from catbot.events import (BotSetupEvent, ReplyBufferingEvent)
-from catbot.dispatcher import (CommandDispatcher, MessageDispatcher)
+from catbot.dispatcher import (CommandDispatcher, MessageDispatcher, CronDispatcher)
 
 class ChannelClient(CommonClient):
     def __init__(self, global_store_path, bot_id):
@@ -41,6 +41,7 @@ class ChannelClient(CommonClient):
 
         self.command_dispatcher = CommandDispatcher(self)
         self.message_dispatcher = MessageDispatcher(self)
+        self.cron_dispatcher = CronDispatcher(self)
 
     def queue_text(self, body):
         self.message_dispatcher.queue.append({
@@ -77,6 +78,7 @@ class ChannelClient(CommonClient):
         for x in range(self.bot_config.concurrent_commands):
             tasks.append(self.command_dispatcher.start())
         tasks.append(self.message_dispatcher.start())
+        tasks.append(self.cron_dispatcher.start())
 
         return tasks
 

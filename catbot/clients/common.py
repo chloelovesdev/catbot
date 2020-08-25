@@ -245,7 +245,7 @@ class CommonClient(AsyncClient):
                 self.blacklist_device(olm_device)
 
     def save_config(self):
-        config_as_json = json.dumps(self.bot_config.to_dict())
+        config_as_json = json.dumps(self.bot_config.to_dict(), indent=4)
 
         # save it to a file
         config_file = open(self.config_path, "w")
