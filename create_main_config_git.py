@@ -20,11 +20,10 @@ bot_config.add("server.device_name", "BOT")
 bot_config.add("server.channel", "!oJGvNtRRSfsLjUOqjv:loves.shitposting.chat")
 bot_config.add("server.password", "<PASSWORD>")
 
-bot_config.add("owner.user_id", "@chloe:loves.shitposting.chat")
-bot_config.add("owner.session_ids", ["TJXGVHDQYT"])
+bot_config.add("trust", {"@chloe:loves.shitposting.chat": ["TJXGVHDQYT"]})
 
 # dump the config's dictionary
-config_as_json = json.dumps(bot_config.to_dict())
+config_as_json = json.dumps(bot_config.to_dict(), indent=4)
 
 # save it to a file
 config_file = open(config_path, "w")

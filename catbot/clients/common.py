@@ -13,6 +13,9 @@ from nio import (AsyncClient, ClientConfig, DevicesError, Event,InviteEvent, Log
                  LocalProtocolError, MatrixRoom, MatrixUser, RoomMessageText, InviteMemberEvent, SyncResponse,
                  crypto, exceptions, RoomSendResponse, RoomMemberEvent)
 
+from nio.crypto.device import TrustState
+from nio.store.database import SqliteStore
+
 from python_json_config import ConfigBuilder
 
 logger = logging.getLogger(__name__)
@@ -43,7 +46,7 @@ class CommonClient(AsyncClient):
             raise Exception(f"Config {self.config_path} does not exist.")
         self.bot_config = builder.parse_config(self.config_path)
 
-        matrix_config = ClientConfig(store_sync_tokens=True)
+        matrix_config = ClientConfig(store_sync_tokens=True, store=SqliteStore)
 
         super().__init__(self.bot_config.server.url, user=self.bot_config.server.user_id,
                     device_id=self.bot_config.server.device_id, store_path=store_path, config=matrix_config, ssl=True, proxy=proxy)
@@ -127,6 +130,7 @@ class CommonClient(AsyncClient):
                 return
 
             logger.debug("cb_synced calling room_setup")
+            self.only_trust_from_config()
             await self.room_setup()
             self.has_setup = True
             self.delay_setup = False
@@ -140,6 +144,7 @@ class CommonClient(AsyncClient):
                 logger.info("We have found a key in the device store. Bot will now setup.")
 
                 self.delay_setup_for_keys = False
+                self.only_trust_from_config()
                 await self.room_setup()
                 self.has_setup = True
                 return
@@ -154,7 +159,7 @@ class CommonClient(AsyncClient):
 
     async def send_text(self, message):
         # trust the devices from the config every time we send, to prevent olm errors
-        self.only_trust_devices(self.bot_config.trust.session_ids)
+        self.only_trust_from_config()
 
         try:
             return await self.room_send(
@@ -171,7 +176,7 @@ class CommonClient(AsyncClient):
 
     async def send_html(self, message):
         # trust the devices from the config every time we send, to prevent olm errors
-        self.only_trust_devices(self.bot_config.trust.session_ids)
+        self.only_trust_from_config()
 
         try:
             return await self.room_send(
@@ -190,7 +195,7 @@ class CommonClient(AsyncClient):
 
     async def send_image(self, url, body="image"):
         # trust the devices from the config every time we send, to prevent olm errors
-        self.only_trust_devices(self.bot_config.trust.session_ids)
+        self.only_trust_from_config()
 
         try:
             return await self.room_send(
@@ -217,13 +222,36 @@ class CommonClient(AsyncClient):
             await self.join(room.room_id)
             self.bot_inviter_id = event.sender
             self.delay_setup = True
+    
+    def only_trust_from_config(self):
+        self.__only_trust(self.bot_config.trust.to_dict() if self.bot_config.trust else None)
 
-    def only_trust_devices(self, device_list: Optional[str] = None) -> None:
+    def __only_trust(self, user_devices_dict) -> None:
+        if self.bot_config.server.channel in self.rooms:
+            if not self.rooms[self.bot_config.server.channel].encrypted:
+                return
+
         for olm_device in self.device_store:
-            if device_list == None or olm_device.device_id in device_list:
-                self.verify_device(olm_device)
+            if user_devices_dict == None:
+                if olm_device.trust_state != TrustState.verified:
+                    logger.info("Verifying device %s", olm_device.device_id)
+                    self.unblacklist_device(olm_device)
+                    self.verify_device(olm_device)
+            elif olm_device.user_id in user_devices_dict and user_devices_dict[olm_device.user_id] == None:
+                if olm_device.trust_state != TrustState.verified:
+                    logger.info("Verifying device %s", olm_device.device_id)
+                    self.unblacklist_device(olm_device)
+                    self.verify_device(olm_device)
+            elif olm_device.user_id in user_devices_dict and olm_device.device_id in user_devices_dict[olm_device.user_id]:
+                if olm_device.trust_state != TrustState.verified:
+                    logger.info("Verifying device %s", olm_device.device_id)
+                    self.unblacklist_device(olm_device)
+                    self.verify_device(olm_device)
             else:
-                self.blacklist_device(olm_device)
+                if olm_device.trust_state != TrustState.blacklisted:
+                    logger.info("Blacklisting device %s", olm_device.device_id)
+                    self.unverify_device(olm_device)
+                    self.blacklist_device(olm_device)
 
     def save_config(self):
         config_as_json = json.dumps(self.bot_config.to_dict(), indent=4)

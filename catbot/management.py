@@ -45,6 +45,7 @@ class ManagementServer:
             web.get('/manage/{bot_id}/modules', self.manage_modules),
             web.post('/manage/{bot_id}/modules/update', self.manage_modules_update),
             web.get('/manage/{bot_id}/trust', self.manage_trust),
+            web.post('/manage/{bot_id}/trust/update', self.manage_trust_update),
             web.get('/manage/{bot_id}/auth', self.manage_auth),
             web.static('/static', static_path)
         ])
@@ -271,14 +272,13 @@ class ManagementServer:
         post_data = await request.post()
 
         bot_config = self.get_config_for_bot(bot_id)
+
         if "all_enabled" in post_data:
             bot_config.update("modules", None)
             self.save_config(bot_id, bot_config)
         else:
             modules_enabled = []
             for module in post_data:
-                if module == "all_enabled":
-                    continue
                 modules_enabled.append(module)
             bot_config.update("modules", modules_enabled)
             self.save_config(bot_id, bot_config)
@@ -299,10 +299,46 @@ class ManagementServer:
             user_with_devices = json.loads(devices_file.read())
             devices_file.close()
 
+        bot_config = self.get_config_for_bot(bot_id)
+
         return {
             "bot_id": bot_id,
-            "user_with_devices": user_with_devices
+            "user_with_devices": user_with_devices,
+            "trust_state": bot_config.trust.to_dict() if bot_config.trust else None,
+            "saved": "saved" in request.query
         }
+
+    async def manage_trust_update(self, request):
+        bot_id = request.match_info["bot_id"]
+        post_data = await request.post()
+
+        bot_config = self.get_config_for_bot(bot_id)
+
+        if "trust_all" in post_data:
+            bot_config.update("trust", None)
+            self.save_config(bot_id, bot_config)
+        else:
+            new_trust_state = {}
+            
+            for checked in post_data:
+                if checked.startswith("trust_all_"):
+                    user_to_trust = checked[len("trust_all_"):]
+                    new_trust_state[user_to_trust] = None
+                elif "[" in checked and "]" in checked:
+                    checked_split = checked.split("[")
+
+                    user_to_trust = checked_split[0]
+                    device_to_trust = checked_split[1].split("]")[0]
+                    if user_to_trust in new_trust_state:
+                        new_trust_state[user_to_trust] += [device_to_trust]
+                    else:
+                        new_trust_state[user_to_trust] = [device_to_trust]
+
+            bot_config.update("trust", new_trust_state)
+            self.save_config(bot_id, bot_config)
+
+        logger.info("Trusted devices saved for %s by %s", bot_id, request_ip(request))
+        raise web.HTTPFound(location=f"/manage/{bot_id}/trust?saved=1")
 
     @aiohttp_jinja2.template('manager/auth.html')
     async def manage_auth(self, request):

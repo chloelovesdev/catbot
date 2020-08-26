@@ -81,7 +81,7 @@ class MainClient(CommonClient):
         new_bot_config.add("server.channel", room_id)
         new_bot_config.add("server.password", self.bot_config.server.password)
 
-        new_bot_config.add("trust.session_ids", None)
+        new_bot_config.add("trust", None)
 
         # dump the config's dictionary
         config_as_json = json.dumps(new_bot_config.to_dict())

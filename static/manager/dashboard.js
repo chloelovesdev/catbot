@@ -39,9 +39,36 @@ socket.addEventListener('message', function (event) {
     term.write(event.data + "\r\n");
 });
 
-$("#start").click(function() {
+function stopBot(successCallback) {
+    $.get( "/manage/" + botID + "/stop", function( data ) {
+        if(data.success) {
+            successCallback();
+            new Noty({
+              text: "Successfully stopped bot.",
+              timeout: 5000,
+              layout: "bottomRight",
+              theme: "sunset",
+              type: "success"
+            }).show();
+            $("#stop").prop('disabled', true);
+            $("#start").prop('disabled', false);
+            $("#restart").prop('disabled', true);
+        } else {
+            new Noty({
+              text: "Could not stop. (is it running?)",
+              timeout: 5000,
+              layout: "bottomRight",
+              theme: "sunset",
+              type: "error"
+            }).show();
+        }
+    });
+}
+
+function startBot(successCallback) {
     $.get( "/manage/" + botID + "/start", function( data ) {
         if(data.success) {
+            successCallback();
             new Noty({
               text: "Successfully started bot.",
               timeout: 5000,
@@ -49,8 +76,10 @@ $("#start").click(function() {
               theme: "sunset",
               type: "success"
             }).show();
+
             $("#start").prop('disabled', true);
             $("#stop").prop('disabled', false);
+            $("#restart").prop('disabled', false);
         } else {
             new Noty({
               text: "Could not start bot. (is it already running?)",
@@ -61,28 +90,37 @@ $("#start").click(function() {
             }).show();
         }
     });
+}
+
+$("#start").click(function() {
+    startBot(function() {
+        console.log("Bot started.")
+    });
 });
 
 $("#stop").click(function() {
-    $.get( "/manage/" + botID + "/stop", function( data ) {
-        if(data.success) {
+    stopBot(function() {
+        console.log("Bot stopped.");
+    });
+});
+
+$("#restart").click(function() {
+    console.log("Bot stopped.");
+    $("#restart").prop('disabled', true);
+    $("#start").prop('disabled', true);
+    $("#stop").prop('disabled', true);
+    
+    stopBot(function() {
+        startBot(function() {
+            console.log("Bot started.");
+
             new Noty({
-              text: "Successfully stopped bot.",
+              text: "Restart complete.",
               timeout: 5000,
               layout: "bottomRight",
               theme: "sunset",
               type: "success"
             }).show();
-            $("#stop").prop('disabled', true);
-            $("#start").prop('disabled', false);
-        } else {
-            new Noty({
-              text: "Could not stop. (is it running?)",
-              timeout: 5000,
-              layout: "bottomRight",
-              theme: "sunset",
-              type: "error"
-            }).show();
-        }
+        });
     });
 });

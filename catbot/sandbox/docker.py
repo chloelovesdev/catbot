@@ -177,6 +177,7 @@ class DockerSandbox:
                     await stdouterr_ws.close()
                     break
                 elif msg.type == aiohttp.WSMsgType.ERROR:
+                    logger.error("[%s] Web socket error: %s", self.container_name, msg.data)
                     raise Exception("Docker websocket error")
                     break
 

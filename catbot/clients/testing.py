@@ -38,7 +38,7 @@ class TestingChannelClient(ChannelClient):
         bot_config.add("server.password", "testingpassword")
 
         bot_config.add("owner.user_id", "@bot:loves.shitposting.chat")
-        bot_config.add("trust.session_ids", ["TJXGVHDQYT"])
+        bot_config.add("trust", None)
 
         # dump the config's dictionary
         config_as_json = json.dumps(bot_config.to_dict())

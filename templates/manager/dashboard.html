@@ -13,6 +13,7 @@ Dashboard
   <h1 class="h2">Dashboard</h1>
   <div class="btn-toolbar mb-2 mb-md-0">
     <div class="btn-group mr-2">
+      <button class="btn btn-sm btn-warning" id="restart" {% if not running %}disabled{% endif %}>Restart</button>
       <button class="btn btn-sm btn-success" id="start" {% if running %}disabled{% endif %}>Start</button>
       <button class="btn btn-sm btn-danger" id="stop" {% if not running %}disabled{% endif %}>Stop</button>
     </div>

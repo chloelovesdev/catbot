@@ -14,35 +14,39 @@ Trusted Devices
 
 {% if saved %}
 <div class="alert alert-success" role="alert">
-    Modules saved. Please restart the bot via the Dashboard for this to take effect.
+    Trusted devices saved. Please restart the bot via the Dashboard for this to take effect.
 </div>
 {% endif %}
 
-<form id="modules" method="post" action="/manage/{{ bot_id }}/modules/update">
+<form id="trust" method="post" action="/manage/{{ bot_id }}/trust/update">
     <div class="form-group">
         <div class="form-check">
-            <input class="form-check-input" type="checkbox" id="trust_all" name="trust_all" value="" {% if trust_all %}checked{% endif %}>
+            <input class="form-check-input" type="checkbox" id="trust_all" name="trust_all" value="" {% if trust_state == None %}checked{% endif %}>
             <label class="form-check-label" for="trust_all">
             Trust all
             </label>
         </div>
 
         {% for user, devices in user_with_devices.items() %}
+        <div class="user">
             <div class="form-check ml-2 mt-1">
-                <input class="form-check-input" type="checkbox" value="" name="trust_all_{{ user }}" {% if trust_all %}disabled{%endif%}>
-                <label class="form-check-label" for="{{ module }}">
+                <input class="form-check-input user-checkbox" type="checkbox" value="" name="trust_all_{{ user }}" {% if trust_state == None %}disabled checked{%endif%} {% if trust_state != None and user in trust_state and trust_state[user] == None %}checked{% endif %}>
+                <label class="form-check-label" for="trust_all_{{ user }}">
                 {{ user }}
                 </label>
             </div>
 
-            {% for device in devices %}
-            <div class="form-check ml-4 mt-1">
-                <input class="form-check-input" type="checkbox" value="" name="{{ device }}" {% if trust_all %}disabled{%endif%}>
-                <label class="form-check-label" for="{{ device }}">
-                {{ device }}
-                </label>
+            <div class="device">
+                {% for device in devices %}
+                <div class="form-check ml-4 mt-1">
+                    <input class="form-check-input device-checkbox" type="checkbox" value="" name="{{ user }}[{{ device }}]" {% if trust_state == None or (user in trust_state and trust_state[user] == None) %}disabled checked{%endif%} {% if trust_state != None and user in trust_state and trust_state[user] != None and device in trust_state[user] %}checked{% endif %}>
+                    <label class="form-check-label" for="{{ device }}">
+                    {{ device }}
+                    </label>
+                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
+        </div>
         {% endfor %}
 
         <button type="submit" class="btn btn-primary mt-2">Save</button>

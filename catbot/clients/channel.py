@@ -54,6 +54,9 @@ class ChannelClient(CommonClient):
             output = {}
 
             for user in self.rooms[self.bot_config.server.channel].users:
+                if user == self.bot_config.server.user_id:
+                    continue
+
                 for olm_device in self.device_store:
                     if olm_device.user_id == user:
                         if user in output:
@@ -118,6 +121,11 @@ class ChannelClient(CommonClient):
             if os.path.isdir(path):
                 # skip directories
                 continue
+
+            if self.bot_config.modules:
+                if not fname in self.bot_config.modules:
+                    logger.info("Skipping module %s, module is disabled", path)
+                    continue
                 
             logger.info("Loading module from %s", path)
 
@@ -135,6 +143,7 @@ class ChannelClient(CommonClient):
                     module = class_obj(self)
                     result[command_name] = module
 
+        logger.info("Module loading complete.")
         return result
 
     async def membership_changed(self, state):
@@ -166,6 +175,7 @@ class ChannelClient(CommonClient):
                 logger.error("Bot joined but the inviter doesn't have the correct power level (>=50 required)")
                 await self.send_text(self.bot_inviter_id + " invited me, but does not have the correct power level for me to join (>=50)")
                 await self.delete_self()
+                raise Exception("Could not kill bot")
 
         self.modules = self.load_modules()
         self.commands = await self.send_to_all_modules(BotSetupEvent(), return_dicts=True)# TODO
@@ -179,6 +189,8 @@ class ChannelClient(CommonClient):
             else:
                 for command_name in commands:
                     logger.info("\t%s", command_name)
+        
+        logger.info("Bot is set up and ready.")
 
     async def send_to_module(self, module_obj, event, buffer_replies=True, return_dicts=False):
         results = []
@@ -218,6 +230,28 @@ class ChannelClient(CommonClient):
         # or if the setup hasn't completed.
         if not self.has_setup or room.room_id != self.bot_config.server.channel or self.bot_config.server.user_id == event.sender:
             return
+
+        if room.encrypted:
+            device_id = None
+
+            for olm_device in self.device_store:
+                for key_type, key in olm_device.keys.items():
+                    if key == event.sender_key:
+                        device_id = olm_device.device_id
             
+            if device_id == None:
+                logger.error("User %s sent a message but we could not find a matching device", event.sender)
+                return
+            else:
+                trust = self.bot_config.trust.to_dict() if self.bot_config.trust else None
+
+                if trust != None and event.sender in trust:
+                    if trust[event.sender] != None and not device_id in trust[event.sender]:
+                        logger.warning("%s tried to send a message on device %s but we do not trust them.", event.sender, device_id)
+                        return
+                elif trust != None:
+                    logger.warning("%s tried to send a message on device %s but we are not yet configured to trust them.", event.sender, device_id)
+                    return
+
         # asyncio.ensure_future(self.command_dispatcher.maybe_run_commands(event))
         self.command_dispatcher.queue.append(event)
