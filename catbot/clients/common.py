@@ -3,6 +3,7 @@ import asyncio
 import os
 import sys
 import json
+import logging
 
 from typing import Optional
 
@@ -13,6 +14,8 @@ from nio import (AsyncClient, ClientConfig, DevicesError, Event,InviteEvent, Log
                  crypto, exceptions, RoomSendResponse, RoomMemberEvent)
 
 from python_json_config import ConfigBuilder
+
+logger = logging.getLogger(__name__)
 
 def config_validation_steps(builder):
     #TODO
@@ -52,7 +55,6 @@ class CommonClient(AsyncClient):
         self.setup_delayed_for = 0 # syncs the setup has been delayed for
         self.has_setup = False
 
-        self.add_event_callback(self.cb_print_messages, RoomMessageText)
         self.add_event_callback(self.cb_room_setup, InviteMemberEvent)
 
         self.add_response_callback(self.cb_synced, SyncResponse)
@@ -62,25 +64,25 @@ class CommonClient(AsyncClient):
         self.user_id = self.bot_config.server.user_id
         self.device_id = self.bot_config.server.device_id
 
-        print(self.access_token)
-        print(self.user_id)
-        print(self.device_id)
+        logger.info("Using user ID %s and device ID %s", self.user_id, self.device_id)
+
         # We didn't restore a previous session, so we'll log in with a password
         if not self.user_id or not self.access_token or not self.device_id:
             # this calls the login method defined in AsyncClient from nio
+            logger.info("Bot is performing a login with user %s", self.bot_config.server.user_id)
             resp = await asyncio.wait_for(super().login(self.bot_config.server.password), timeout=60)
 
             if isinstance(resp, LoginResponse):
-                print("Logged in using a password; saving details to disk")
+                logger.info("Logged in using a password; saving details to disk")
                 self.bot_config.add("server.access_token", resp.access_token)
                 self.bot_config.add("server.device_id", resp.device_id)
                 self.bot_config.add("server.user_id", resp.user_id)
                 self.save_config()
             else:
-                print(f"Failed to log in: {resp}")
+                logger.info(f"Failed to log in: %s", resp)
                 sys.exit(1)
         else:
-            print(f"Logged in using stored credentials: {self.user_id} on {self.device_id}")
+            logger.info("Logged in using stored credentials: user %s on device %s", self.user_id, self.device_id)
             self.load_store()
 
     async def cb_synced(self, response):
@@ -104,7 +106,6 @@ class CommonClient(AsyncClient):
         state, state_latest_timestamp = check_rooms_in_sync(state, state_latest_timestamp, response.rooms.leave)
         for room_id, room_info in response.rooms.invite.items():
             if room_id == self.bot_config.server.channel:
-                print(room_info)
                 for event in room_info.invite_state:
                     if isinstance(event, InviteMemberEvent) and event.state_key == self.bot_config.server.user_id and event.source['origin_server_ts'] > state_latest_timestamp:
                         state = event.content['membership']
@@ -116,17 +117,16 @@ class CommonClient(AsyncClient):
         # if the room is encrypted, we wait another sync for the keys
         # when all is good, room_setup will be fired
 
-        #print(f"Synced: {response}")
         if self.delay_setup and self.bot_config.server.channel in self.rooms:
             room = self.rooms[self.bot_config.server.channel]
             if room.encrypted:
-                print("This room is encrypted and we must wait for another sync which will contain the keys")
+                logger.warning("This room is encrypted and we must wait for another sync which will contain the keys")
                 self.delay_setup = False
                 self.delay_setup_for_keys = True
                 self.setup_delayed_for = 0
                 return
 
-            print("cb_synced calling room_setup")
+            logger.debug("cb_synced calling room_setup")
             await self.room_setup()
             self.has_setup = True
             self.delay_setup = False
@@ -134,9 +134,11 @@ class CommonClient(AsyncClient):
             self.setup_delayed_for += 1
 
         if self.delay_setup_for_keys:
-            print("Delay setup for keys")
+            logger.info("Delaying the bot's setup until we have the keys")
+
             for olm_device in self.device_store:
-                print("Device with key found")
+                logger.info("We have found a key in the device store. Bot will now setup.")
+
                 self.delay_setup_for_keys = False
                 await self.room_setup()
                 self.has_setup = True
@@ -149,25 +151,6 @@ class CommonClient(AsyncClient):
         
         if self.setup_delayed_for > 5:
             await self.room_setup_failed()
-
-    #debug print messages
-    #TODO: REMOVE? 
-    async def cb_print_messages(self, room: MatrixRoom, event: RoomMessageText):
-        # dont print anything thats not from the bot's channel
-        if room.room_id != self.bot_config.server.channel:
-            # print(room.room_id)
-            return
-
-        if event.decrypted:
-            encrypted_symbol = "🛡 "
-        else:
-            encrypted_symbol = "⚠️ "
-        print(f"{room.display_name} |{encrypted_symbol}| {room.user_name(event.sender)}: {event.body}")
-        if "!devices" in event.body.lower() and not self.bot_config.server.user_id == event.sender:
-            print("These are all known devices:")
-            [print(f"\t{device.user_id}\t {device.device_id}\t {device.trust_state}\t  {device.display_name}") for device in self.device_store]
-        if "meow" in event.body.lower() and not self.bot_config.server.user_id == event.sender:
-            await self.send_text("meow")
 
     async def send_text(self, message):
         # trust the devices from the config every time we send, to prevent olm errors
@@ -183,7 +166,7 @@ class CommonClient(AsyncClient):
                 }
             )
         except exceptions.OlmUnverifiedDeviceError as err:
-            print("olm error")
+            logger.error("Bot threw an olm error when trying to send text (did you forget to trust the devices?)")
             return None
 
     async def send_html(self, message):
@@ -202,7 +185,7 @@ class CommonClient(AsyncClient):
                 }
             )
         except exceptions.OlmUnverifiedDeviceError as err:
-            print("olm error")
+            logger.error("Bot threw an olm error when trying to send HTML (did you forget to trust the devices?)")
             return None
 
     async def send_image(self, url, body="image"):
@@ -220,19 +203,17 @@ class CommonClient(AsyncClient):
                 }
             )
         except exceptions.OlmUnverifiedDeviceError as err:
-            print("olm error")
+            logger.error("Bot threw an olm error when trying to send an image (did you forget to trust the devices?)")
             return None
 
     async def send_markdown(self, message):
         return await self.send_html(Markdown().convert(message))
 
     async def cb_room_setup(self, room: MatrixRoom, event: InviteMemberEvent):
-        print("Room Setup?")
+        logger.info("Bot was invited to a room.")
+        
         if event.membership and event.membership == "invite" and room.room_id == self.bot_config.server.channel:
-            print("We were invited to our channel!")
-            print(room)
-            print(event)
-
+            logger.info("Channel we were invited to is the one the bot is configured for. Attempting to join.")
             await self.join(room.room_id)
             self.bot_inviter_id = event.sender
             self.delay_setup = True
@@ -256,7 +237,7 @@ class CommonClient(AsyncClient):
         if not self.bot_config.server.channel in self.rooms:
             self.delay_setup = True
         else:
-            print("after_first_sync calling room_setup")
+            logger.info("Setting up the room after the first sync")
             await self.room_setup()
             self.has_setup = True
 
@@ -264,10 +245,11 @@ class CommonClient(AsyncClient):
         raise Exception("Room setup not implemented")
 
     async def room_setup_failed(self):
-        print("Setup failed!")
-        print("Setup failed!")
-        print("Setup failed!")
-        print("Setup failed!")
+        logger.error("Setup failed!")
+        logger.error("Setup failed!")
+        logger.error("Setup failed!")
+        logger.error("Setup failed!")
+
         raise Exception("Setup failed (maybe bot is not in/invited to room?)")
 
     async def membership_changed(self, state):

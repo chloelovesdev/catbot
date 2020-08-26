@@ -9,6 +9,7 @@ import sys
 import subprocess
 import threading
 import select
+import logging
 
 from typing import Optional
 
@@ -22,13 +23,16 @@ from catbot.clients import CommonClient
 
 from python_json_config.config_node import ConfigNode
 
+logger = logging.getLogger(__name__)
+
 class MainClient(CommonClient):
     def __init__(self, global_store_path, entry_point_file):
         super().__init__(global_store_path=global_store_path, bot_id="MAIN")
 
         self.entry_point_file = entry_point_file
-
         self.add_event_callback(self.cb_try_setup_bot, InviteNameEvent)
+
+        logger.info("Main client initialized with entry point %s", self.entry_point_file)
 
     def setup_cached_bots(self):
         tasks = []
@@ -44,22 +48,23 @@ class MainClient(CommonClient):
 
     async def cb_try_setup_bot(self, room: MatrixRoom, event: InviteNameEvent):
         if room.room_id == self.bot_config.server.channel:
-            print("Invited to bot's main room, joining!")
+            logger.info("Main client was invited to it's room and will now try to join")
             await self.join(room.room_id)
             return
 
-        print("Trying to set up bot, someone gave me an invite!")
-        print(room)
-        print(event)
+        logger.info("Invited to a channel that was not the main one. Attempting to setup bot.")
 
         if self.check_room_with_bot_exists(room):
             await self.send_text("bot already exists with room id and invite given(?)")
+            logger.warning("User %s attempted to setup bot where it already exists at.", event.state_key)
             return
         else:
+            logger.info("Creating a new task to spin up a new bot")
             loop = asyncio.get_event_loop()
             loop.create_task(self.setup_bot(None, room=room))
 
     def create_bot_config(self, bot_id: str, room_id: str):
+        logger.info("Creating bot config for bot %s and room %s", bot_id, room_id)
         os.mkdir(os.path.join(self.global_store_path, bot_id))
 
         config_path = os.path.join(self.global_store_path, bot_id, "config.json")
@@ -91,6 +96,7 @@ class MainClient(CommonClient):
                 bots_as_dict = self.bot_config.bots.to_dict()
                 for bot_id, bot_data in bots_as_dict.items():
                     if bot_data['room_id'] == room.room_id:
+                        logger.info("A configuration already exists. Setting bot %s status to active.", bot_id)
                         self.bot_config.update(f"bots.{bot_id}.active", True)
                         self.save_config()
                         updated_existing_bot = True
@@ -107,15 +113,17 @@ class MainClient(CommonClient):
                 self.bot_config.add(f"bots.{bot_id}.room_id", room.room_id)
                 self.bot_config.add(f"bots.{bot_id}.active", True)
                 self.save_config()
-        elif bot_id == None:
+
+        if bot_id == None:
+            logger.error("No bot ID was specified when setting up a bot")
             raise Exception("None bot_id but no event parameters")
 
         bots_as_dict = self.bot_config.bots.to_dict()
         if bots_as_dict[bot_id]['active'] == False:
-            print("Not setting up bot " + bot_id + ". Bot is inactive.")
+            logger.warning("Not setting up bot %s because it is inactive", bot_id)
             return None
 
-        print("Setup bot: " + bot_id)
+        logger.info("Setting up bot with ID %s", bot_id)
 
         # read the process stdout and stderr concurrently always
         # demarcate with [BOT_ID]
@@ -125,12 +133,12 @@ class MainClient(CommonClient):
                 # line = line.decode("ascii").rstrip()
                 if line:
                     try:
-                        print(f"[{bot_id}] [{std}] " + line.decode("utf-8").rstrip())
+                        print(f"[{bot_id}] " + line.decode("utf-8").rstrip())
                     except:
-                        print(f"[{bot_id}] [{std}] {line}")
+                        print(f"[{bot_id}] {line}")
 
                     if line.rstrip() == b"DEACTIVATEBOT":
-                        print(f"Deleting bot on {std} with ID " + bot_id)
+                        logger.info("Deleting bot on stream %s with ID %s", std, bot_id)
                         if std == "stdout":
                             self.bot_config.update(f"bots.{bot_id}.active", False) # bot is disabled
                             self.save_config()
@@ -146,10 +154,10 @@ class MainClient(CommonClient):
                 if is_terminated:
                     break
 
-            print("read_and_print loop terminated")
+            logger.info("We have stopped listening to the %s stream for bot %s", std, bot_id)
 
         async def start_and_listen_proc():
-            proc = await asyncio.create_subprocess_exec(sys.executable, "-u", self.entry_point_file, bot_id, 
+            proc = await asyncio.create_subprocess_exec(sys.executable, "-u", self.entry_point_file, bot_id,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE)
             await asyncio.gather(
@@ -157,7 +165,6 @@ class MainClient(CommonClient):
                 asyncio.ensure_future(read_proc_output_task(proc, "stderr", proc.stderr, 10))
             )
 
-        print("Before gather")
         return start_and_listen_proc()
 
     def check_room_with_bot_exists(self, room: MatrixRoom):
@@ -171,5 +178,5 @@ class MainClient(CommonClient):
         return False
 
     async def room_setup(self):
-        print("We are setting up!")
-        await self.send_text("Hello, world!")
+        logger.info("Main bot is setting up")
+        await self.send_text("Main bot started")

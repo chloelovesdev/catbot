@@ -1,8 +1,11 @@
 import pytimeparse
 import asyncio
 import time
+import logging
 
 from nio import RoomMessageText
+
+logger = logging.getLogger(__name__)
 
 class CronDispatcher:
     def __init__(self, client):
@@ -28,7 +31,7 @@ class CronDispatcher:
                     parsed_cron_time = pytimeparse.parse(cron_time)
 
                     if (second_counter % parsed_cron_time) == 0:
-                        print(f"Running cron command '{cron_command}'")
+                        logger.info("Sending cron command '%s' to command dispatcher", cron_command)
 
                         event = RoomMessageText.from_dict({
                                 'room_id': self.client.bot_config.server.channel,

@@ -3,10 +3,13 @@ import asyncio
 import copy
 import re
 import traceback
+import logging
 
 from catbot.events import ReplyBufferingEvent
 
 from nio import RoomMessageText
+
+logger = logging.getLogger(__name__)
 
 class CommandNotFound(Exception):
     pass
@@ -27,8 +30,10 @@ class CommandDispatcher:
             if len(self.queue) > 0:
                 event = self.queue.pop(0)
                 if isinstance(event, RoomMessageText):
+                    logger.info("CommandDispatcher is handling message: %s", event.body)
                     await self.maybe_run_commands(event)
                 else:
+                    logger.error("Unhandled event %s", event)
                     raise Exception("CommandDispatcher did not handle event: " + str(event))
 
             await asyncio.sleep(0.1)
@@ -66,15 +71,18 @@ class CommandDispatcher:
 
     async def run_factoid(self, event, stdin_data=b"", recurse_count=0):
         factoid_command_split = event.body.split(" ")
+        logger.info("Attempting to run factoid '%s'", factoid_command_split[0])
 
         # get the factoid from the db/fs
-        factoid_content = self.client.get_factoid_content(factoid_command_split[0])
+        factoid_content = self.client.factoids.get_content(factoid_command_split[0])
         if factoid_content == None:
+            logger.warning("Attempt to run non-existent command '%s'", event.body)
             raise CommandNotFound(f"Command not found for '{factoid_command_split[0]}'")
             
         # first check if a $NUM argument is required but not in the event body
         for x in range(100):
             if "$" + str(x) in factoid_content and len(factoid_command_split) <= x:
+                logger.warning("Attempt to run command without correct input '%s'", event.body)
                 raise EmptyInput(f"More input is required for '{factoid_command_split[0]}'")
 
         # then replace all the arguments into the factoid we are going to run
@@ -87,6 +95,7 @@ class CommandDispatcher:
         if len(factoid_command_split) > 1:
             factoid_content = factoid_content.replace("$@", '"' + " ".join(factoid_command_split[1:]).replace("\"", "\\\"") + '"')
         elif "$@" in factoid_content:
+            logger.warning("Attempt to run command without correct input '%s'", event.body)
             raise EmptyInput(f"Input required for {factoid_command_split[0]}")
 
         if factoid_content.startswith("<html>") or factoid_content.startswith("[html]"):
@@ -104,7 +113,6 @@ class CommandDispatcher:
         # check if we are being redirected to another command,
         # and if so we run and return the output of that command instead
         if factoid_content.startswith("<cmd>") or factoid_content.startswith("[cmd]"):
-            # print(f"Run command in factoid {factoid_content}")
             copied_event = copy.deepcopy(event)
             copied_event.body = factoid_content[len("<cmd>"):]
             return await self.parse_and_run_command(copied_event, stdin_data, recurse_count + 1)
@@ -131,6 +139,7 @@ class CommandDispatcher:
         no_commands_found = True
         
         if len(event.body) == 0:
+            logger.error("Tried running command but input was empty")
             raise EmptyInput("Input was empty.")
 
         # first, we check if any of our modules reported this as a command

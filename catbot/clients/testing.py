@@ -10,6 +10,7 @@ import os
 import json
 import base64
 import io
+import logging
 
 from aiofiles.threadpool.binary import AsyncBufferedReader
 from aiofiles.threadpool.text import AsyncTextIOWrapper
@@ -22,9 +23,13 @@ SynchronousFile = (
 )
 AsyncFile = (AsyncBufferedReader, AsyncTextIOWrapper)
 
+logger = logging.getLogger(__name__)
+
 class TestingChannelClient(ChannelClient):
     def __create_testing_client_config(self, config_path):
         # give our config data
+        logger.debug("Writing testing bot configuration")
+
         bot_config = ConfigNode({})
         bot_config.add("server.url", "https://loves.shitposting.chat")
         bot_config.add("server.user_id", "@bot:loves.shitposting.chat")
@@ -84,5 +89,9 @@ class TestingChannelClient(ChannelClient):
                 'sender': '@tester:bot',
                 'origin_server_ts': int(time.time())
             })
+
+        logger.info("Running testing command with TestingChannelClient: '%s'", command)
         await self.command_dispatcher.maybe_run_commands(event)
+
+        logger.info("Test command finished, returning output")
         return self.message_dispatcher.queue

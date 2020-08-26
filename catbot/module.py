@@ -4,7 +4,6 @@ from nio import (RoomMessageText)
 
 def setup(func):
     def ret_fun(*args, **kwargs):
-        print(args)
         if len(args) > 1 and isinstance(args[1], ReplyBufferingEvent) and isinstance(args[1].original_event, BotSetupEvent):
             return func(*args, **kwargs)
         else:

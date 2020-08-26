@@ -10,6 +10,7 @@ import shlex
 import traceback
 import re
 import time
+import logging
 
 from typing import Optional
 from markdown2 import Markdown
@@ -21,24 +22,24 @@ from nio import (AsyncClient, ClientConfig, DevicesError, Event, InviteMemberEve
 from catbot import module
 
 from catbot.clients import CommonClient
+from catbot.managers import FileBasedFactoidManager
 from catbot.events import (BotSetupEvent, ReplyBufferingEvent)
 from catbot.dispatcher import (CommandDispatcher, MessageDispatcher, CronDispatcher)
+
+logger = logging.getLogger(__name__)
 
 class ChannelClient(CommonClient):
     def __init__(self, global_store_path, bot_id):
         super().__init__(global_store_path=global_store_path, bot_id=bot_id)
 
-        print("Channel client starting")
         self.add_event_callback(self.cb_maybe_run_commands, RoomMessageText)
 
         if not self.bot_config.command_prefix:
             self.bot_config.add("command_prefix", "!")
+        
+        self.factoids = FileBasedFactoidManager(global_store_path)
 
-        # find and create factoid directory
-        self.factoid_dir_path = os.path.realpath(os.path.join(self.global_store_path, "factoids"))
-        if not os.path.isdir(self.factoid_dir_path):
-            os.mkdir(self.factoid_dir_path)
-
+        logger.info("Initializing dispatchers")
         self.command_dispatcher = CommandDispatcher(self)
         self.message_dispatcher = MessageDispatcher(self)
         self.cron_dispatcher = CronDispatcher(self)
@@ -70,6 +71,7 @@ class ChannelClient(CommonClient):
 
     def dispatcher_tasks(self):
         if not self.bot_config.concurrent_commands:
+            logger.info("Client does not have concurrent_commands set in config. Updating config with default value.")
             self.bot_config.update("concurrent_commands", 5)
             self.save_config()
 
@@ -82,52 +84,11 @@ class ChannelClient(CommonClient):
 
         return tasks
 
-    # currently using files as a "DB"
-    def get_factoid_path(self, name):
-        name = name.replace("/", "").replace(".", "").replace("\\", "")
-        return os.path.join(self.factoid_dir_path, name)
-
-    def get_factoid_content_binary(self, name):
-        factoid_path = self.get_factoid_path(name)
-
-        if os.path.exists(factoid_path):
-            factoid_file = open(factoid_path, "rb")
-            content = factoid_file.read()
-            factoid_file.close()
-            return content
-        else:
-            return None
-            
-    def get_factoid_content(self, name):
-        factoid_path = self.get_factoid_path(name)
-
-        if os.path.exists(factoid_path):
-            factoid_file = open(factoid_path, "r")
-            content = factoid_file.read()
-            factoid_file.close()
-            return content
-        else:
-            return None
-        
-    def set_factoid_content(self, name, content):
-        factoid_path = self.get_factoid_path(name)
-        factoid_file = open(factoid_path, "w")
-        factoid_file.write(content)
-        factoid_file.close()
-        return True
-        
-    def set_factoid_content_binary(self, name, content):
-        factoid_path = self.get_factoid_path(name)
-        factoid_file = open(factoid_path, "wb")
-        factoid_file.write(content)
-        factoid_file.close()
-        return True
-
     def load_modules(self):
         result = {}
 
         path_to_commands = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "modules"))
-        print("Found path to modules: " + path_to_commands)
+        logger.info("Found path to modules: %s", path_to_commands)
 
         for fname in os.listdir(path_to_commands):
             path = os.path.join(path_to_commands, fname)
@@ -136,7 +97,7 @@ class ChannelClient(CommonClient):
                 # skip directories
                 continue
                 
-            print(f"Loading module from {path}")
+            logger.info("Loading module from %s", path)
 
             command_name = os.path.splitext(fname)[0]
 
@@ -156,9 +117,12 @@ class ChannelClient(CommonClient):
 
     async def membership_changed(self, state):
         if state == "leave" or state == "ban":
+            logger.error("Bot was kicked or banned from it's room.")
             await self.delete_self()
 
     async def delete_self(self):
+        logger.info("Deactivating bot.")
+
         await self.room_leave(self.bot_config.server.channel)
         print("DEACTIVATEBOT")
         sys.stderr.write("DEACTIVATEBOT\n")
@@ -166,7 +130,7 @@ class ChannelClient(CommonClient):
         sys.exit(1)
 
     async def room_setup(self):
-        print("Bot is now in the room and we have the user data for the room")
+        logger.info("Bot is now in the room and we have the user data for the room")
 
         # bot was just invited
         if self.bot_inviter_id:
@@ -174,15 +138,24 @@ class ChannelClient(CommonClient):
             inviter_user = inviter_room.users[self.bot_inviter_id]
 
             if self.bot_inviter_id in inviter_room.power_levels.users and inviter_room.power_levels.users[self.bot_inviter_id] >= 50:
-                print("Inviter has correct power level")
-                await self.queue_text("catbot here at your service :)") #TODO: get hello from config file
+                logger.info("Inviter has correct power level")
+                self.queue_text("catbot here at your service :)") #TODO: get hello from config file
             else:
                 await self.send_text(self.bot_inviter_id + " invited me, but does not have the correct power level for me to join (>=50)")
                 await self.delete_self()
 
         self.modules = self.load_modules()
         self.commands = await self.send_to_all_modules(BotSetupEvent(), return_dicts=True)# TODO
-        print(self.commands)
+
+        for module, commands in self.commands.items():
+            logger.info("Commands found for module %s:", module.__class__.__name__)
+
+            if isinstance(commands, dict):
+                for command_name, eat_everything in commands.items():
+                    logger.info("\t%s %s", command_name, "(eats everything)" if eat_everything else "(does not eat everything)")
+            else:
+                for command_name in commands:
+                    logger.info("\t%s", command_name)
 
     async def send_to_module(self, module_obj, event, buffer_replies=True, return_dicts=False):
         results = []

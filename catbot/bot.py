@@ -4,6 +4,7 @@ import os
 import sys
 import json
 import argparse
+import logging
 
 from typing import Optional
 
@@ -16,12 +17,16 @@ from catbot.clients import (MainClient, CommonClient, ChannelClient)
 from catbot.management import ManagementServer
 from catbot.dispatcher import CommandDispatcher
 
+logger = logging.getLogger(__name__)
+
 async def run_client(client: CommonClient) -> None:
     await client.login()
 
     async def after_first_sync():
-        print("Awaiting sync")
+        logger.info("Awaiting the first sync from the Matrix server")
         await client.synced.wait()
+        
+        logger.info("Executing after_first_sync() on client")
         await client.after_first_sync()
 
     after_first_sync_task = asyncio.ensure_future(after_first_sync())
@@ -59,15 +64,21 @@ async def main(entrypoint_file):
                        help='the bot id (use MAIN to start catbot in main mode)')
 
     args = parser.parse_args()
+    logger.info("Arguments parsed successfully")
+
     main_mode = args.bot_id == "MAIN"
     client = None
 
     if main_mode:
+        logger.info("Creating main client with %s", args.bot_id)
+
         client = MainClient(
             global_store_path,
             entrypoint_file
         )
     else:
+        logger.info("Creating channel client with %s", args.bot_id)
+
         client = ChannelClient(
             global_store_path,
             args.bot_id
