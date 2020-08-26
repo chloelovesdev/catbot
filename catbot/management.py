@@ -38,7 +38,7 @@ class ManagementServer:
             web.get('/factoid/{name}', self.factoid),
             web.post('/factoid/{name}/save', self.factoid_save),
             web.post('/test', self.factoid_test),
-            web.get('/manage/{bot_id}', self.manage_index),
+            web.get('/manage/{bot_id}', self.manage_dashboard),
             web.get('/manage/{bot_id}/output', self.manage_output_websocket),
             web.get('/manage/{bot_id}/start', self.manage_start),
             web.get('/manage/{bot_id}/stop', self.manage_stop),
@@ -124,10 +124,10 @@ class ManagementServer:
             "success": self.factoids.set_content(factoid_name, post_data['content'])
         })
 
-    @aiohttp_jinja2.template('manager/index.html')
-    async def manage_index(self, request):
+    @aiohttp_jinja2.template('manager/dashboard.html')
+    async def manage_dashboard(self, request):
         bot_id = request.match_info["bot_id"]
-        logger.info("User %s requesting manage index for %s", request_ip(request), bot_id)
+        logger.info("User %s requesting manage dashboard for %s", request_ip(request), bot_id)
         running = bot_id in self.client.processes
 
         return {
@@ -303,7 +303,7 @@ class ManagementServer:
             "bot_id": bot_id,
             "user_with_devices": user_with_devices
         }
-        
+
     @aiohttp_jinja2.template('manager/auth.html')
     async def manage_auth(self, request):
         bot_id = request.match_info["bot_id"]
