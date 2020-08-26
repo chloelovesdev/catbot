@@ -1,5 +1,9 @@
 {% extends "manager/base.html" %}
 
+{% block title %}
+Dashboard
+{% endblock %}
+
 {% block styles %}
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/xterm/3.14.5/xterm.min.css" integrity="sha512-iLYuqv+v/P4u9erpk+KM83Ioe/l7SEmr7wB6g+Kg1qmEit8EShDKnKtLHlv2QXUp7GGJhmqDI+1PhJYLTsfb8w==" crossorigin="anonymous" />
 {% endblock %}
@@ -9,8 +13,8 @@
   <h1 class="h2">Dashboard</h1>
   <div class="btn-toolbar mb-2 mb-md-0">
     <div class="btn-group mr-2">
-      <button class="btn btn-sm btn-success" id="start" {% if running %}disabled{%endif%}>Start</button>
-      <button class="btn btn-sm btn-danger" id="stop" {% if not running %}disabled{%endif%}>Stop</button>
+      <button class="btn btn-sm btn-success" id="start" {% if running %}disabled{% endif %}>Start</button>
+      <button class="btn btn-sm btn-danger" id="stop" {% if not running %}disabled{% endif %}>Stop</button>
     </div>
   </div>
 </div>
@@ -22,5 +26,5 @@
 <script>window.botID = {{ bot_id_json | safe }};</script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/3.14.5/xterm.min.js" integrity="sha512-2PRgAav8Os8vLcOAh1gSaDoNLe1fAyq8/G3QSdyjFFD+OqNjLeHE/8q4+S4MEZgPsuo+itHopj+hJvqS8XUQ8A==" crossorigin="anonymous"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xterm/3.14.5/addons/fit/fit.min.js" integrity="sha512-+wh8VA1djpWk3Dj9/IJDu6Ufi4vVQ0zxLv9Vmfo70AbmYFJm0z3NLnV98vdRKBdPDV4Kwpi7EZdr8mDY9L8JIA==" crossorigin="anonymous"></script>
-<script src="/static/manager.js"></script>
+<script src="/static/manager/dashboard.js"></script>
 {% endblock %}

@@ -81,7 +81,7 @@ class MainClient(CommonClient):
         new_bot_config.add("server.channel", room_id)
         new_bot_config.add("server.password", self.bot_config.server.password)
 
-        new_bot_config.add("owner.session_ids", None)
+        new_bot_config.add("trust.session_ids", None)
 
         # dump the config's dictionary
         config_as_json = json.dumps(new_bot_config.to_dict())
@@ -149,7 +149,7 @@ class MainClient(CommonClient):
                     self.last_x_messages[bot_id].append(line)
                     if len(self.last_x_messages[bot_id]) > 30: #TODO: configurable by main bot config
                         self.last_x_messages[bot_id].pop(0)
-                        
+
                     if self.management_server:
                         if bot_id in self.management_server.open_sockets:
                             for ws in self.management_server.open_sockets[bot_id]:

@@ -1,5 +1,9 @@
 {% extends "manager/base.html" %}
 
+{% block title %}
+Modules
+{% endblock %}
+
 {% block styles %}
 {% endblock %}
 
@@ -7,7 +11,37 @@
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
   <h1 class="h2">Modules</h1>
 </div>
+
+{% if saved %}
+<div class="alert alert-success" role="alert">
+    Modules saved. Please restart the bot via the Dashboard for this to take effect.
+</div>
+{% endif %}
+
+<form id="modules" method="post" action="/manage/{{ bot_id }}/modules/update">
+    <div class="form-group">
+        <div class="form-check">
+            <input class="form-check-input" type="checkbox" id="all_enabled" name="all_enabled" value="" {% if all_enabled %}checked{% endif %}>
+            <label class="form-check-label" for="all_enabled">
+            Enable all
+            </label>
+        </div>
+
+        {% for module, state in modules.items() %}
+        <div class="form-check mt-1">
+            <input class="form-check-input" type="checkbox" value="" name="{{ module }}" {% if state %}checked{%endif%} {% if all_enabled %}disabled{%endif%}>
+            <label class="form-check-label" for="{{ module }}">
+            {{ module }}
+            </label>
+        </div>
+        {% endfor %}
+
+        <button type="submit" class="btn btn-primary mt-2">Save</button>
+    </div>
+</form>
+
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/manager/modules.js"></script>
 {% endblock %}

@@ -154,7 +154,7 @@ class CommonClient(AsyncClient):
 
     async def send_text(self, message):
         # trust the devices from the config every time we send, to prevent olm errors
-        self.only_trust_devices(self.bot_config.owner.session_ids)
+        self.only_trust_devices(self.bot_config.trust.session_ids)
 
         try:
             return await self.room_send(
@@ -171,7 +171,7 @@ class CommonClient(AsyncClient):
 
     async def send_html(self, message):
         # trust the devices from the config every time we send, to prevent olm errors
-        self.only_trust_devices(self.bot_config.owner.session_ids)
+        self.only_trust_devices(self.bot_config.trust.session_ids)
 
         try:
             return await self.room_send(
@@ -190,7 +190,7 @@ class CommonClient(AsyncClient):
 
     async def send_image(self, url, body="image"):
         # trust the devices from the config every time we send, to prevent olm errors
-        self.only_trust_devices(self.bot_config.owner.session_ids)
+        self.only_trust_devices(self.bot_config.trust.session_ids)
 
         try:
             return await self.room_send(

@@ -10,9 +10,11 @@ import asyncio
 from catbot.clients import TestingChannelClient
 from catbot.managers import FileBasedFactoidManager
 
+from python_json_config import ConfigBuilder
+
 logger = logging.getLogger(__name__)
 
-def peer_data(request):
+def request_ip(request):
     data = request.transport.get_extra_info('peername')
     if len(data) > 0:
         return data[0]
@@ -41,6 +43,7 @@ class ManagementServer:
             web.get('/manage/{bot_id}/start', self.manage_start),
             web.get('/manage/{bot_id}/stop', self.manage_stop),
             web.get('/manage/{bot_id}/modules', self.manage_modules),
+            web.post('/manage/{bot_id}/modules/update', self.manage_modules_update),
             web.get('/manage/{bot_id}/trust', self.manage_trust),
             web.get('/manage/{bot_id}/auth', self.manage_auth),
             web.static('/static', static_path)
@@ -69,7 +72,7 @@ class ManagementServer:
 
     @aiohttp_jinja2.template('factoids/index.html')
     async def index(self, request):
-        logger.info("User %s requesting index", peer_data(request))
+        logger.info("User %s requesting index", request_ip(request))
         factoids = self.factoids.list_of()
         factoid_content = self.factoids.get_content("example")
         if factoid_content == None:
@@ -85,7 +88,7 @@ class ManagementServer:
     @aiohttp_jinja2.template('factoids/index.html')
     async def factoid(self, request):
         factoid_name = request.match_info["name"]
-        logger.info("User %s requesting factoid %s", peer_data(request), factoid_name)
+        logger.info("User %s requesting factoid %s", request_ip(request), factoid_name)
 
         factoids = self.factoids.list_of()
         factoid_content = self.factoids.get_content(factoid_name)
@@ -105,7 +108,7 @@ class ManagementServer:
 
         testing_client = TestingChannelClient(self.client.global_store_path)
 
-        logger.info("Running test command %s for %s", post_data['content'], peer_data(request))
+        logger.info("Running test command %s for %s", post_data['content'], request_ip(request))
         output = await testing_client.run_testing_command(post_data['content'])
         logger.info("Finished running test")
 
@@ -115,7 +118,7 @@ class ManagementServer:
         factoid_name = request.match_info["name"]
         post_data = await request.post()
 
-        logger.info("Factoid %s saved by %s", factoid_name, peer_data(request))
+        logger.info("Factoid %s saved by %s", factoid_name, request_ip(request))
 
         return web.json_response({
             "success": self.factoids.set_content(factoid_name, post_data['content'])
@@ -124,7 +127,7 @@ class ManagementServer:
     @aiohttp_jinja2.template('manager/index.html')
     async def manage_index(self, request):
         bot_id = request.match_info["bot_id"]
-        logger.info("User %s requesting manage index for %s", peer_data(request), bot_id)
+        logger.info("User %s requesting manage index for %s", request_ip(request), bot_id)
         running = bot_id in self.client.processes
 
         return {
@@ -135,7 +138,7 @@ class ManagementServer:
 
     async def manage_output_websocket(self, request):
         bot_id = request.match_info["bot_id"]
-        logger.info("Creating WebSocket for bot %s ip %s", bot_id, peer_data(request))
+        logger.info("Creating WebSocket for bot %s ip %s", bot_id, request_ip(request))
 
         ws = web.WebSocketResponse()
         await ws.prepare(request)
@@ -162,7 +165,7 @@ class ManagementServer:
 
     async def manage_stop(self, request):
         bot_id = request.match_info["bot_id"]
-        logger.info("%s requested to stop %s", peer_data(request), bot_id)
+        logger.info("%s requested to stop %s", request_ip(request), bot_id)
         success = False
 
         if bot_id in self.client.processes:
@@ -180,7 +183,7 @@ class ManagementServer:
     
     async def manage_start(self, request):
         bot_id = request.match_info["bot_id"]
-        logger.info("%s requested to start %s", peer_data(request), bot_id)
+        logger.info("%s requested to start %s", request_ip(request), bot_id)
 
         success = True
         if bot_id in self.client.processes:
@@ -196,14 +199,17 @@ class ManagementServer:
             "success": success
         })
 
-    def get_bot_store_path(bot_id):
+    def get_bot_store_path(self, bot_id):
         bot_id = bot_id.replace(".", "").replace("\\", "").replace("/", "")
         return os.path.realpath(os.path.join(self.global_store_path, bot_id))
 
-    def get_bot_config_path(bot_id):
+    def get_bot_config_path(self, bot_id):
         return os.path.realpath(os.path.join(self.get_bot_store_path(bot_id), "config.json"))
+
+    def get_bot_devices_path(self, bot_id):
+        return os.path.realpath(os.path.join(self.get_bot_store_path(bot_id), "devices.json"))
     
-    def get_config_for_bot(bot_id):
+    def get_config_for_bot(self, bot_id):
         config_path = self.get_bot_config_path(bot_id)
 
         if os.path.exists(config_path):
@@ -211,28 +217,97 @@ class ManagementServer:
         else:
             return None
 
+    def get_all_modules(self):
+        path_to_modules = os.path.realpath(os.path.join(os.path.dirname(__file__), "modules"))
+        result = []
+
+        for potential_module in os.listdir(path_to_modules):
+            full_path = os.path.join(path_to_modules, potential_module)
+            if os.path.isfile(full_path):
+                result += [potential_module]
+                
+        return result
+    
+    def save_config(self, bot_id, config):
+        config_as_json = json.dumps(config.to_dict(), indent=4)
+
+        # save it to a file
+        config_file = open(self.get_bot_config_path(bot_id), "w")
+        config_file.write(config_as_json)
+        config_file.close()
+
     @aiohttp_jinja2.template('manager/modules.html')
     async def manage_modules(self, request):
         bot_id = request.match_info["bot_id"]
-        logger.info("User %s requesting module management for %s", peer_data(request), bot_id)
+        logger.info("User %s requesting module management for %s", request_ip(request), bot_id)
+
+        bot_config = self.get_config_for_bot(bot_id)
+        if bot_config == None:
+            logger.warning("User %s tried to request a bot that doesn't exist (%s)", request_ip(request), bot_id)
+            raise web.HTTPNotFound()
+
+        all_modules = self.get_all_modules()
+        module_states = {}
+        
+        all_enabled = False
+        if bot_config.modules == None:
+            all_enabled = True
+        
+        for module in all_modules:
+            if all_enabled:
+                module_states[module] = True
+            else:
+                module_states[module] = True if module in bot_config.modules else False
 
         return {
-            "bot_id": bot_id
+            "bot_id": bot_id,
+            "modules": module_states,
+            "all_enabled": all_enabled,
+            "saved": "saved" in request.query
         }
+
+    async def manage_modules_update(self, request):
+        bot_id = request.match_info["bot_id"]
+        post_data = await request.post()
+
+        bot_config = self.get_config_for_bot(bot_id)
+        if "all_enabled" in post_data:
+            bot_config.update("modules", None)
+            self.save_config(bot_id, bot_config)
+        else:
+            modules_enabled = []
+            for module in post_data:
+                if module == "all_enabled":
+                    continue
+                modules_enabled.append(module)
+            bot_config.update("modules", modules_enabled)
+            self.save_config(bot_id, bot_config)
+
+        logger.info("Modules saved for %s by %s", bot_id, request_ip(request))
+        raise web.HTTPFound(location=f"/manage/{bot_id}/modules?saved=1")
 
     @aiohttp_jinja2.template('manager/trust.html')
     async def manage_trust(self, request):
         bot_id = request.match_info["bot_id"]
-        logger.info("User %s requesting trusted devices for %s", peer_data(request), bot_id)
+        logger.info("User %s requesting trusted devices for %s", request_ip(request), bot_id)
+
+        user_with_devices = {}
+        devices_path = self.get_bot_devices_path(bot_id)
+        
+        if os.path.exists(devices_path):
+            devices_file = open(self.get_bot_devices_path(bot_id))
+            user_with_devices = json.loads(devices_file.read())
+            devices_file.close()
 
         return {
-            "bot_id": bot_id
+            "bot_id": bot_id,
+            "user_with_devices": user_with_devices
         }
-
+        
     @aiohttp_jinja2.template('manager/auth.html')
     async def manage_auth(self, request):
         bot_id = request.match_info["bot_id"]
-        logger.info("User %s requesting authentication settings for %s", peer_data(request), bot_id)
+        logger.info("User %s requesting authentication settings for %s", request_ip(request), bot_id)
 
         return {
             "bot_id": bot_id

@@ -44,6 +44,28 @@ class ChannelClient(CommonClient):
         self.message_dispatcher = MessageDispatcher(self)
         self.cron_dispatcher = CronDispatcher(self)
 
+        self.add_response_callback(self.cb_save_users_and_devices, SyncResponse)
+
+    async def cb_save_users_and_devices(self, response):
+        if not self.has_setup:
+            return
+
+        if self.bot_config.server.channel in self.rooms:
+            output = {}
+
+            for user in self.rooms[self.bot_config.server.channel].users:
+                for olm_device in self.device_store:
+                    if olm_device.user_id == user:
+                        if user in output:
+                            output[user] += [olm_device.device_id]
+                        else:
+                            output[user] = [olm_device.device_id]
+
+            path_to_output = os.path.realpath(os.path.join(self.store_path, "devices.json"))
+            output_file = open(path_to_output, "w")
+            output_file.write(json.dumps(output, indent=4))
+            output_file.close()
+
     def queue_text(self, body):
         self.message_dispatcher.queue.append({
             "type": "text",
