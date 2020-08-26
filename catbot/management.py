@@ -28,6 +28,7 @@ class ManagementServer:
         logger.info("Static folder: %s", static_path)
 
         self.client = client
+        self.global_store_path = self.client.global_store_path
 
         self.app = web.Application()
         self.app.router.add_routes([
@@ -39,6 +40,9 @@ class ManagementServer:
             web.get('/manage/{bot_id}/output', self.manage_output_websocket),
             web.get('/manage/{bot_id}/start', self.manage_start),
             web.get('/manage/{bot_id}/stop', self.manage_stop),
+            web.get('/manage/{bot_id}/modules', self.manage_modules),
+            web.get('/manage/{bot_id}/trust', self.manage_trust),
+            web.get('/manage/{bot_id}/auth', self.manage_auth),
             web.static('/static', static_path)
         ])
 
@@ -46,7 +50,7 @@ class ManagementServer:
         templates_path = os.path.realpath(templates_path)
         logger.info("Templates folder: %s", templates_path)
 
-        self.factoids = FileBasedFactoidManager(client.global_store_path)
+        self.factoids = FileBasedFactoidManager(self.global_store_path)
         self.open_sockets = {}
 
         aiohttp_jinja2.setup(self.app,
@@ -124,7 +128,8 @@ class ManagementServer:
         running = bot_id in self.client.processes
 
         return {
-            "bot_id": json.dumps(bot_id),
+            "bot_id_json": json.dumps(bot_id),
+            "bot_id": bot_id,
             "running": running
         }
 
@@ -145,13 +150,14 @@ class ManagementServer:
                 await ws.send_str(message)
 
         async for msg in ws:
-            if msg.type == aiohttp.WSMsgType.CLOSE:
+            if msg.type == aiohttp.WSMsgType.CLOSE or msg.type == aiohttp.WSMsgType.CLOSED_FRAME:
                 self.open_sockets[bot_id].remove(ws)
                 break
             elif msg.type == aiohttp.WSMsgType.ERROR:
                 logger.error('ws connection closed with exception %s', ws.exception())
-                self.open_sockets[bot_id].remove(ws)
-
+                break
+        
+        self.open_sockets[bot_id].remove(ws)
         return ws
 
     async def manage_stop(self, request):
@@ -189,3 +195,45 @@ class ManagementServer:
         return web.json_response({
             "success": success
         })
+
+    def get_bot_store_path(bot_id):
+        bot_id = bot_id.replace(".", "").replace("\\", "").replace("/", "")
+        return os.path.realpath(os.path.join(self.global_store_path, bot_id))
+
+    def get_bot_config_path(bot_id):
+        return os.path.realpath(os.path.join(self.get_bot_store_path(bot_id), "config.json"))
+    
+    def get_config_for_bot(bot_id):
+        config_path = self.get_bot_config_path(bot_id)
+
+        if os.path.exists(config_path):
+            return ConfigBuilder().parse_config(config_path)
+        else:
+            return None
+
+    @aiohttp_jinja2.template('manager/modules.html')
+    async def manage_modules(self, request):
+        bot_id = request.match_info["bot_id"]
+        logger.info("User %s requesting module management for %s", peer_data(request), bot_id)
+
+        return {
+            "bot_id": bot_id
+        }
+
+    @aiohttp_jinja2.template('manager/trust.html')
+    async def manage_trust(self, request):
+        bot_id = request.match_info["bot_id"]
+        logger.info("User %s requesting trusted devices for %s", peer_data(request), bot_id)
+
+        return {
+            "bot_id": bot_id
+        }
+
+    @aiohttp_jinja2.template('manager/auth.html')
+    async def manage_auth(self, request):
+        bot_id = request.match_info["bot_id"]
+        logger.info("User %s requesting authentication settings for %s", peer_data(request), bot_id)
+
+        return {
+            "bot_id": bot_id
+        }

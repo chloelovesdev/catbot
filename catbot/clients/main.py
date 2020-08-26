@@ -140,6 +140,8 @@ class MainClient(CommonClient):
                         line = line.decode("utf-8").rstrip()
                     except:
                         line = str(line)
+
+                    print(f"[{bot_id}] {line}")
                     
                     if not bot_id in self.last_x_messages.keys():
                         self.last_x_messages[bot_id] = []
@@ -147,8 +149,7 @@ class MainClient(CommonClient):
                     self.last_x_messages[bot_id].append(line)
                     if len(self.last_x_messages[bot_id]) > 30: #TODO: configurable by main bot config
                         self.last_x_messages[bot_id].pop(0)
-
-                    print(f"[{bot_id}] {line}")
+                        
                     if self.management_server:
                         if bot_id in self.management_server.open_sockets:
                             for ws in self.management_server.open_sockets[bot_id]:

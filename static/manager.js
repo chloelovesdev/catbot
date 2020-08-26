@@ -33,12 +33,10 @@ $(window).resize(function(){
 });
 
 term.open($("#bot-output")[0]);
-term.write("Bot log output will appear here\r\n\r\n")
 resizeTerminal(term);
 
 socket.addEventListener('message', function (event) {
     term.write(event.data + "\r\n");
-    resizeTerminal(term);
 });
 
 $("#start").click(function() {
