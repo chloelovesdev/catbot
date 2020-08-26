@@ -18,6 +18,8 @@ Trusted Devices
 </div>
 {% endif %}
 
+<p>Trust specific devices in an encrypted room.<br/><b>Note:</b> any new users will have to be manually trusted if you untick "Trust all".</p>
+
 <form id="trust" method="post" action="/manage/{{ bot_id }}/trust/update">
     <div class="form-group">
         <div class="form-check">
@@ -49,7 +51,7 @@ Trusted Devices
         </div>
         {% endfor %}
 
-        <button type="submit" class="btn btn-primary mt-2">Save</button>
+        <button type="submit" class="btn btn-primary mt-3">Save</button>
     </div>
 </form>
 

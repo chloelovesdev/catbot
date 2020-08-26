@@ -11,7 +11,7 @@ class CronDispatcher:
     def __init__(self, client):
         self.client = client
         self.time_jump = 1
-        self.time_limit = 3600
+        self.time_limit = 86400
     
     async def start(self):
         second_counter = 0
@@ -29,9 +29,15 @@ class CronDispatcher:
                     cron_command = cron_task['command']
                     cron_time = cron_task['interval'].strip()
                     parsed_cron_time = pytimeparse.parse(cron_time)
+                    if cron_command.strip() == "" or cron_time.strip() == "":
+                        continue
+
+                    if parsed_cron_time == None:
+                        logger.error("Could not parse scheduler interval %s for command '%s'", cron_time, cron_command)
+                        continue
 
                     if (second_counter % parsed_cron_time) == 0:
-                        logger.info("Sending cron command '%s' to command dispatcher", cron_command)
+                        logger.info("Sending cron scheduled command '%s' to command dispatcher", cron_command)
 
                         event = RoomMessageText.from_dict({
                                 'room_id': self.client.bot_config.server.channel,

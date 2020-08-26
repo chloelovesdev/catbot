@@ -47,6 +47,9 @@ class ManagementServer:
             web.get('/manage/{bot_id}/trust', self.manage_trust),
             web.post('/manage/{bot_id}/trust/update', self.manage_trust_update),
             web.get('/manage/{bot_id}/auth', self.manage_auth),
+            web.post('/manage/{bot_id}/auth/update', self.manage_auth_update),
+            web.get('/manage/{bot_id}/cron', self.manage_cron),
+            web.post('/manage/{bot_id}/cron/update', self.manage_cron_update),
             web.static('/static', static_path)
         ])
 
@@ -319,7 +322,7 @@ class ManagementServer:
             self.save_config(bot_id, bot_config)
         else:
             new_trust_state = {}
-            
+
             for checked in post_data:
                 if checked.startswith("trust_all_"):
                     user_to_trust = checked[len("trust_all_"):]
@@ -345,6 +348,86 @@ class ManagementServer:
         bot_id = request.match_info["bot_id"]
         logger.info("User %s requesting authentication settings for %s", request_ip(request), bot_id)
 
+        main_config = self.client.bot_config
+        bot_config = self.get_config_for_bot(bot_id)
+        uses_defaults = bot_config.server.user_id == main_config.server.user_id
+
+        homeserver = main_config.server.url
+        user_id = main_config.server.user_id
+        password = "haha nice try"
+
+        if not uses_defaults:
+            homeserver = bot_config.server.url
+            user_id = bot_config.server.user_id
+            password = bot_config.server.password
+
         return {
-            "bot_id": bot_id
+            "bot_id": bot_id,
+            "uses_defaults": uses_defaults,
+            "homeserver": homeserver,
+            "user_id": user_id,
+            "password": password,
+            "saved": "saved" in request.query
         }
+
+    async def manage_auth_update(self, request):
+        bot_id = request.match_info["bot_id"]
+        post_data = await request.post()
+
+        main_config = self.client.bot_config
+        bot_config = self.get_config_for_bot(bot_id)
+
+        if "defaults" in post_data or post_data["user_id"] == main_config.server.user_id:
+            bot_config.update("server.url", main_config.server.url)
+            bot_config.update("server.user_id", main_config.server.user_id)
+            bot_config.update("server.password", main_config.server.password)
+            self.save_config(bot_id, bot_config)
+        else:
+            bot_config.update("server.url", post_data["homeserver"])
+            bot_config.update("server.user_id", post_data["user_id"])
+            bot_config.update("server.password", post_data["password"])
+            self.save_config(bot_id, bot_config)
+
+        raise web.HTTPFound(location=f"/manage/{bot_id}/auth?saved=1")
+    
+    @aiohttp_jinja2.template('manager/cron.html')
+    async def manage_cron(self, request):
+        bot_id = request.match_info["bot_id"]
+        logger.info("User %s requesting scheduler for %s", request_ip(request), bot_id)
+
+        bot_config = self.get_config_for_bot(bot_id)
+        existing_tasks = bot_config.cron if bot_config.cron else []
+        tasks = []
+
+        for x in range(5):
+            if len(existing_tasks) > x:
+                tasks += [ existing_tasks[x] ]
+            else:
+                tasks += [{
+                    "command": "",
+                    "interval": ""
+                }]
+
+        return {
+            "bot_id": bot_id,
+            "tasks": tasks,
+            "saved": "saved" in request.query
+        }
+
+    async def manage_cron_update(self, request):
+        bot_id = request.match_info["bot_id"]
+        post_data = await request.post()
+
+        bot_config = self.get_config_for_bot(bot_id)
+        new_tasks = []
+
+        for x in range(1, 6):
+            new_tasks.append({
+                "command": post_data[f"task{x}[command]"],
+                "interval": post_data[f"task{x}[interval]"]
+            })
+
+        bot_config.update("cron", new_tasks)
+        self.save_config(bot_id, bot_config)
+
+        raise web.HTTPFound(location=f"/manage/{bot_id}/cron?saved=1")

@@ -253,5 +253,4 @@ class ChannelClient(CommonClient):
                     logger.warning("%s tried to send a message on device %s but we are not yet configured to trust them.", event.sender, device_id)
                     return
 
-        # asyncio.ensure_future(self.command_dispatcher.maybe_run_commands(event))
         self.command_dispatcher.queue.append(event)

@@ -18,6 +18,8 @@ Modules
 </div>
 {% endif %}
 
+<p>Enable/disable modules in use for this bot.<br /><b>Note:</b> if new modules are added to the bot and you unchecked "Enable all", they will be disabled by default.</p>
+
 <form id="modules" method="post" action="/manage/{{ bot_id }}/modules/update">
     <div class="form-group">
         <div class="form-check">
@@ -36,7 +38,7 @@ Modules
         </div>
         {% endfor %}
 
-        <button type="submit" class="btn btn-primary mt-2">Save</button>
+        <button type="submit" class="btn btn-primary mt-3">Save</button>
     </div>
 </form>
 

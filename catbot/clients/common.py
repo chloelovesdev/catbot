@@ -67,10 +67,11 @@ class CommonClient(AsyncClient):
         self.user_id = self.bot_config.server.user_id
         self.device_id = self.bot_config.server.device_id
 
-        logger.info("Using user ID %s and device ID %s", self.user_id, self.device_id)
+        if self.user_id == self.bot_config.server.stored_for_user_id:
+            logger.info("Using user ID %s and device ID %s", self.user_id, self.device_id)
 
         # We didn't restore a previous session, so we'll log in with a password
-        if not self.user_id or not self.access_token or not self.device_id:
+        if not self.user_id or not self.access_token or not self.device_id or self.user_id != self.bot_config.server.stored_for_user_id:
             # this calls the login method defined in AsyncClient from nio
             logger.info("Bot is performing a login with user %s", self.bot_config.server.user_id)
             resp = await asyncio.wait_for(super().login(self.bot_config.server.password), timeout=60)
@@ -80,6 +81,7 @@ class CommonClient(AsyncClient):
                 self.bot_config.add("server.access_token", resp.access_token)
                 self.bot_config.add("server.device_id", resp.device_id)
                 self.bot_config.add("server.user_id", resp.user_id)
+                self.bot_config.add("server.stored_for_user_id", resp.user_id)
                 self.save_config()
             else:
                 logger.info(f"Failed to log in: %s", resp)
@@ -89,6 +91,8 @@ class CommonClient(AsyncClient):
             self.load_store()
 
     async def cb_synced(self, response):
+        logger.info("Bot synced with server")
+        
         # find the latest state event
         # hack around RoomMemberEvent not being given to the channel_client for some reason
         # TODO: fix this mess!
@@ -136,6 +140,7 @@ class CommonClient(AsyncClient):
             self.delay_setup = False
         elif self.delay_setup:
             self.setup_delayed_for += 1
+            logger.warning("Setup delayed (maybe you need to invite the bot to the room?)")
 
         if self.delay_setup_for_keys:
             logger.info("Delaying the bot's setup until we have the keys")
@@ -263,6 +268,7 @@ class CommonClient(AsyncClient):
 
     async def after_first_sync(self):
         if not self.bot_config.server.channel in self.rooms:
+            logger.warning("Bot is not in the room. Delaying setup.")
             self.delay_setup = True
         else:
             logger.info("Setting up the room after the first sync")

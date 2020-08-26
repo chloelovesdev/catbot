@@ -1,0 +1,44 @@
+{% extends "manager/base.html" %}
+
+{% block title %}
+Task Scheduler
+{% endblock %}
+
+{% block styles %}
+{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
+  <h1 class="h2">Scheduler</h1>
+</div>
+
+{% if saved %}
+<div class="alert alert-success" role="alert">
+    Scheduler saved. Please restart the bot via the Dashboard for this to take effect.
+</div>
+{% endif %}
+
+<p>Add a command or factoid to run after every interval.<br />Interval format is as follows: 30s, 30 seconds, 1m, 1 minute, 1d, 1 day, 2 hours, 2h, etc.<br/><b>By default, this bot will only run 5 commands at a single time, so if the intervals are too close together and the bot is in use you will experience slower command execution rates.<br/>If you require more tasks, please ask the bot administrator.</b><br/><br/></p>
+
+<form id="cron" method="post" action="/manage/{{ bot_id }}/cron/update">
+    {% for task in tasks %}
+    <div class="form-group">
+        <div class="row">
+            <div class="col-8">
+                <input type="text" class="form-control" name="task{{ loop.index }}[command]" value="{{ task['command'] }}" placeholder="Command">
+            </div>
+            <div class="col-4">
+                <input type="text" class="form-control" name="task{{ loop.index }}[interval]" value="{{ task['interval'] }}" placeholder="Interval">
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    <button type="submit" class="btn btn-primary mt-2">Save</button>
+</form>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/manager/modules.js"></script>
+{% endblock %}

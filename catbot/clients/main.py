@@ -77,6 +77,7 @@ class MainClient(CommonClient):
         new_bot_config = ConfigNode({})
         new_bot_config.add("server.url", self.bot_config.server.url)
         new_bot_config.add("server.user_id", self.bot_config.server.user_id)
+        new_bot_config.add("server.stored_for_user_id", self.bot_config.server.user_id)
         new_bot_config.add("server.device_name", self.bot_config.server.device_name)
         new_bot_config.add("server.channel", room_id)
         new_bot_config.add("server.password", self.bot_config.server.password)

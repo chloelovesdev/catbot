@@ -1,5 +1,9 @@
 {% extends "manager/base.html" %}
 
+{% block title %}
+Authentication
+{% endblock %}
+
 {% block styles %}
 {% endblock %}
 
@@ -7,7 +11,41 @@
 <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pb-2 mb-3 border-bottom">
   <h1 class="h2">Authentication</h1>
 </div>
+
+{% if saved %}
+<div class="alert alert-success" role="alert">
+    Authentication details saved. Please restart the bot via the Dashboard for this to take effect.
+</div>
+{% endif %}
+<p>Below you can change the login, password and home server this bot is using.<br />Please note that the user ID must be it's full form (with an @ and the homeserver) and have no trailing spaces.<br/><b>Note:</b> passwords are stored cleartext, so please create a new account for the bot rather than using your personal account.</p>
+
+<form method="post" action="/manage/{{ bot_id }}/auth/update">
+    <div class="form-check mb-3">
+        <input type="checkbox" class="form-check-input" id="defaults" name="defaults" {% if uses_defaults %}checked{% endif %}>
+        <label class="form-check-label" for="defaults">Use bot defaults (inherits from main bot config)</label>
+    </div>
+
+    <div class="form-group">
+        <label for="homeserver">Homeserver URL</label>
+        <input type="text" class="form-control" id="homeserver" name="homeserver" aria-describedby="homeserverHelp" placeholder="Enter homeserver URL" value="{{ homeserver }}" {% if uses_defaults %}disabled{% endif %}>
+        <small id="homeserverHelp" class="form-text text-muted">Enter the homeserver url for the bot to connect with. (example https://loves.shitposting.chat)</small>
+    </div>
+
+    <div class="form-group">
+      <label for="user_id">User ID</label>
+      <input type="text" class="form-control" id="user_id" aria-describedby="userIDHelp" name="user_id" placeholder="Enter user ID" value="{{ user_id }}" {% if uses_defaults %}disabled{% endif %}>
+      <small id="userIDHelp" class="form-text text-muted">Enter the user ID (example @bot:loves.shitposting.chat).</small>
+    </div>
+
+    <div class="form-group">
+        <label for="password">Password</label>
+        <input type="password" class="form-control" id="password" name="password" placeholder="Password" value="{{ password }}" {% if uses_defaults %}disabled{% endif %}>
+    </div>
+
+    <button type="submit" class="btn btn-primary">Save</button>
+</form>
 {% endblock %}
 
 {% block scripts %}
+<script src="/static/manager/auth.js"></script>
 {% endblock %}
