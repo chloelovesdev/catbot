@@ -5,6 +5,7 @@ import aiohttp_jinja2, jinja2
 import os
 import json
 import logging
+import asyncio
 
 from catbot.clients import TestingChannelClient
 from catbot.managers import FileBasedFactoidManager
@@ -34,6 +35,10 @@ class ManagementServer:
             web.get('/factoid/{name}', self.factoid),
             web.post('/factoid/{name}/save', self.factoid_save),
             web.post('/test', self.factoid_test),
+            web.get('/manage/{bot_id}', self.manage_index),
+            web.get('/manage/{bot_id}/output', self.manage_output_websocket),
+            web.get('/manage/{bot_id}/start', self.manage_start),
+            web.get('/manage/{bot_id}/stop', self.manage_stop),
             web.static('/static', static_path)
         ])
 
@@ -42,6 +47,7 @@ class ManagementServer:
         logger.info("Templates folder: %s", templates_path)
 
         self.factoids = FileBasedFactoidManager(client.global_store_path)
+        self.open_sockets = {}
 
         aiohttp_jinja2.setup(self.app,
             loader=jinja2.FileSystemLoader(templates_path))
@@ -109,4 +115,77 @@ class ManagementServer:
 
         return web.json_response({
             "success": self.factoids.set_content(factoid_name, post_data['content'])
+        })
+
+    @aiohttp_jinja2.template('manager/index.html')
+    async def manage_index(self, request):
+        bot_id = request.match_info["bot_id"]
+        logger.info("User %s requesting manage index for %s", peer_data(request), bot_id)
+        running = bot_id in self.client.processes
+
+        return {
+            "bot_id": json.dumps(bot_id),
+            "running": running
+        }
+
+    async def manage_output_websocket(self, request):
+        bot_id = request.match_info["bot_id"]
+        logger.info("Creating WebSocket for bot %s ip %s", bot_id, peer_data(request))
+
+        ws = web.WebSocketResponse()
+        await ws.prepare(request)
+
+        if bot_id in self.open_sockets:
+            self.open_sockets[bot_id] += [ws]
+        else:
+            self.open_sockets[bot_id] = [ws]
+
+        if bot_id in self.client.last_x_messages.keys():
+            for message in self.client.last_x_messages[bot_id]:
+                await ws.send_str(message)
+
+        async for msg in ws:
+            if msg.type == aiohttp.WSMsgType.CLOSE:
+                self.open_sockets[bot_id].remove(ws)
+                break
+            elif msg.type == aiohttp.WSMsgType.ERROR:
+                logger.error('ws connection closed with exception %s', ws.exception())
+                self.open_sockets[bot_id].remove(ws)
+
+        return ws
+
+    async def manage_stop(self, request):
+        bot_id = request.match_info["bot_id"]
+        logger.info("%s requested to stop %s", peer_data(request), bot_id)
+        success = False
+
+        if bot_id in self.client.processes:
+            self.client.processes[bot_id].terminate()
+            if bot_id in self.open_sockets.keys():
+                for bot_id, sockets in self.open_sockets.items():
+                    for ws in sockets:
+                        await ws.send_str("Bot process stopped.")
+
+            success = True
+
+        return web.json_response({
+            "success": success
+        })
+    
+    async def manage_start(self, request):
+        bot_id = request.match_info["bot_id"]
+        logger.info("%s requested to start %s", peer_data(request), bot_id)
+
+        success = True
+        if bot_id in self.client.processes:
+            success = False
+        else:
+            if bot_id in self.open_sockets.keys():
+                for bot_id, sockets in self.open_sockets.items():
+                    for ws in sockets:
+                        await ws.send_str("Bot process starting.")
+            asyncio.ensure_future(self.client.setup_bot(bot_id))
+
+        return web.json_response({
+            "success": success
         })

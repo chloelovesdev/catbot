@@ -35,6 +35,7 @@ async def run_client(client: CommonClient) -> None:
     if isinstance(client, MainClient):
         setup_cached_bots_list = client.setup_cached_bots()
         management_server = ManagementServer(client)
+        client.management_server = management_server
         
         await asyncio.gather(
             # The order here IS significant! You have to register the task to trust

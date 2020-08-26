@@ -32,6 +32,10 @@ class MainClient(CommonClient):
         self.entry_point_file = entry_point_file
         self.add_event_callback(self.cb_try_setup_bot, InviteNameEvent)
 
+        self.management_server = None
+        self.processes = {}
+        self.last_x_messages = {}
+
         logger.info("Main client initialized with entry point %s", self.entry_point_file)
 
     def setup_cached_bots(self):
@@ -133,9 +137,22 @@ class MainClient(CommonClient):
                 # line = line.decode("ascii").rstrip()
                 if line:
                     try:
-                        print(f"[{bot_id}] " + line.decode("utf-8").rstrip())
+                        line = line.decode("utf-8").rstrip()
                     except:
-                        print(f"[{bot_id}] {line}")
+                        line = str(line)
+                    
+                    if not bot_id in self.last_x_messages.keys():
+                        self.last_x_messages[bot_id] = []
+
+                    self.last_x_messages[bot_id].append(line)
+                    if len(self.last_x_messages[bot_id]) > 30: #TODO: configurable by main bot config
+                        self.last_x_messages[bot_id].pop(0)
+
+                    print(f"[{bot_id}] {line}")
+                    if self.management_server:
+                        if bot_id in self.management_server.open_sockets:
+                            for ws in self.management_server.open_sockets[bot_id]:
+                                await ws.send_str(line)
 
                     if line.rstrip() == b"DEACTIVATEBOT":
                         logger.info("Deleting bot on stream %s with ID %s", std, bot_id)
@@ -146,7 +163,7 @@ class MainClient(CommonClient):
                     else:
                         return False
                 else:
-                    return False
+                    return True
 
             while True:
                 is_terminated = await read_and_print(std, std_to_read_from)
@@ -160,10 +177,13 @@ class MainClient(CommonClient):
             proc = await asyncio.create_subprocess_exec(sys.executable, "-u", self.entry_point_file, bot_id,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE)
+
+            self.processes[bot_id] = proc
             await asyncio.gather(
                 asyncio.ensure_future(read_proc_output_task(proc, "stdout", proc.stdout, 10)),
                 asyncio.ensure_future(read_proc_output_task(proc, "stderr", proc.stderr, 10))
             )
+            del self.processes[bot_id]
 
         return start_and_listen_proc()
 

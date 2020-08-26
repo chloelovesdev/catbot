@@ -34,7 +34,6 @@ function saveCurrentFactoid(successCallback) {
     $.post("/factoid/" + factoidName + "/save", {
         content: editor.getValue()
     }, function(data) {
-        console.log(data)
         if(data.success) {
             successCallback();
             new Noty({
@@ -91,6 +90,7 @@ $("#test").click(function() {
     }
 
     $("#test-output").addClass("test-visible");
+    editor.resize();
     $("#test-output-lines").html("<div class=\"line line-text\">Running...</div>");
 
     $.post("/test", {
@@ -119,4 +119,5 @@ $("#test").click(function() {
 
 $("#test-close").click(function() {
     $("#test-output").removeClass("test-visible");
+    editor.resize();
 });

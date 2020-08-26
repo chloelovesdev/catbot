@@ -141,6 +141,7 @@ class ChannelClient(CommonClient):
                 logger.info("Inviter has correct power level")
                 self.queue_text("catbot here at your service :)") #TODO: get hello from config file
             else:
+                logger.error("Bot joined but the inviter doesn't have the correct power level (>=50 required)")
                 await self.send_text(self.bot_inviter_id + " invited me, but does not have the correct power level for me to join (>=50)")
                 await self.delete_self()
 
