@@ -42,8 +42,8 @@ class MainClient(CommonClient):
         tasks = []
 
         if self.bot_config.bots:
-            bots_as_dict = self.bot_config.bots.to_dict() #TODO lookup how to do this
-            for bot_id in bots_as_dict:
+            bots = self.bot_config.bots.to_dict() #TODO lookup how to do this
+            for bot_id in bots:
                 task = self.setup_bot(bot_id)
                 if task:
                     tasks += [task]

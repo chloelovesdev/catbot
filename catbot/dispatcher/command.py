@@ -150,7 +150,7 @@ class CommandDispatcher:
                     # buffer all outputs for further inputs
                     buffering_event = ReplyBufferingEvent(self.client, event, stdin_data, buffer_replies=True)
                     # actually fire the function in the module (buffering happens inside the module)
-                    await self.client.send_to_module(module, buffering_event)
+                    await self.client.modules.send_to(module, buffering_event)
                     # append the result to results output
                     results += buffering_event.buffer
                     # do not search factoids
@@ -172,7 +172,7 @@ class CommandDispatcher:
                 for command, eat_everything in commands.items():
                     if event.body.startswith(command) and eat_everything:
                         buffering_event = ReplyBufferingEvent(self.client, event, stdin_data, buffer_replies=True)
-                        await self.client.send_to_module(module, buffering_event)
+                        await self.client.modules.send_to(module, buffering_event)
                         return buffering_event.buffer
 
         previous_output = stdin_data
@@ -222,5 +222,5 @@ class CommandDispatcher:
             except (CommandNotFound, RecursionLimitExceeded, EmptyInput) as e:
                 self.client.queue_text("An error occurred. " + str(e))
         else:
-            await self.client.send_to_all_modules(event)
+            await self.client.modules.send_to_all(event)
     
