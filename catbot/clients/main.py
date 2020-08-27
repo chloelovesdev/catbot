@@ -92,6 +92,44 @@ class MainClient(CommonClient):
         config_file.write(config_as_json)
         config_file.close()
 
+    # read the process stdout and stderr concurrently always
+    # demarcate with [BOT_ID]
+    async def __read_and_print_proc_output(self, bot_id, proc, std, std_to_read_from):
+        while True:
+            line = await std_to_read_from.readline()
+
+            if not line:
+                break
+
+            if line:
+                try:
+                    line = line.decode("utf-8").rstrip()
+                except:
+                    line = str(line)
+
+                print(f"[{bot_id}] {line}")
+
+                if not bot_id in self.last_x_messages.keys():
+                    self.last_x_messages[bot_id] = []
+
+                self.last_x_messages[bot_id].append(line)
+                if len(self.last_x_messages[bot_id]) > 30: #TODO: configurable by main bot config
+                    self.last_x_messages[bot_id].pop(0)
+
+                if self.management_server:
+                    if bot_id in self.management_server.open_sockets:
+                        for ws in self.management_server.open_sockets[bot_id]:
+                            await ws.send_str(line)
+
+                if line.rstrip() == b"DEACTIVATEBOT":
+                    logger.info("Stopping stream %s with bot ID %s", std, bot_id)
+                    if std == "stdout":
+                        self.bot_config.update(f"bots.{bot_id}.active", False) # bot is disabled
+                        self.save_config()
+                    break
+
+        logger.info("We have stopped listening to the %s stream for bot %s", std, bot_id)
+
     def setup_bot(self, bot_id: str, room: MatrixRoom = None):
         if bot_id == None and not room == None:
             updated_existing_bot = False
@@ -105,6 +143,7 @@ class MainClient(CommonClient):
                         self.bot_config.update(f"bots.{bot_id}.active", True)
                         self.save_config()
                         updated_existing_bot = True
+                        break
 
             if not updated_existing_bot:
                 bot_id = ''.join(random.choice(string.ascii_uppercase + string.digits) for _ in range(10))
@@ -130,64 +169,29 @@ class MainClient(CommonClient):
 
         logger.info("Setting up bot with ID %s", bot_id)
 
-        # read the process stdout and stderr concurrently always
-        # demarcate with [BOT_ID]
-        async def read_and_print_proc_output(proc, std, std_to_read_from):
-            while True:
-                line = await std_to_read_from.readline()
-
-                if not line:
-                    break
-
-                if line:
-                    try:
-                        line = line.decode("utf-8").rstrip()
-                    except:
-                        line = str(line)
-
-                    print(f"[{bot_id}] {line}")
-
-                    if not bot_id in self.last_x_messages.keys():
-                        self.last_x_messages[bot_id] = []
-
-                    self.last_x_messages[bot_id].append(line)
-                    if len(self.last_x_messages[bot_id]) > 30: #TODO: configurable by main bot config
-                        self.last_x_messages[bot_id].pop(0)
-
-                    if self.management_server:
-                        if bot_id in self.management_server.open_sockets:
-                            for ws in self.management_server.open_sockets[bot_id]:
-                                await ws.send_str(line)
-
-                    if line.rstrip() == b"DEACTIVATEBOT":
-                        logger.info("Deleting bot on stream %s with ID %s", std, bot_id)
-                        if std == "stdout":
-                            self.bot_config.update(f"bots.{bot_id}.active", False) # bot is disabled
-                            self.save_config()
-                        break
-
-            logger.info("We have stopped listening to the %s stream for bot %s", std, bot_id)
-
         async def start_and_listen_proc():
             proc = await asyncio.create_subprocess_exec(sys.executable, "-u", self.entry_point_file, bot_id,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE)
 
             self.processes[bot_id] = proc
+
             await asyncio.gather(
-                asyncio.ensure_future(read_and_print_proc_output(proc, "stdout", proc.stdout)),
-                asyncio.ensure_future(read_and_print_proc_output(proc, "stderr", proc.stderr))
+                asyncio.ensure_future(self.__read_and_print_proc_output(bot_id, proc, "stdout", proc.stdout)),
+                asyncio.ensure_future(self.__read_and_print_proc_output(bot_id, proc, "stderr", proc.stderr))
             )
+            
+            # process finished
             del self.processes[bot_id]
 
         return start_and_listen_proc()
 
     def check_room_with_bot_exists(self, room: MatrixRoom):
         if self.bot_config.bots:
-            bots_as_dict = self.bot_config.bots.to_dict() #TODO lookup how to do this
+            bots = self.bot_config.bots.to_dict() #TODO lookup how to do this
 
-            for bot_id in bots_as_dict:
-                if bots_as_dict[bot_id]['room_id'] == room.room_id and bots_as_dict[bot_id]['active']:
+            for bot_id in bots:
+                if bots[bot_id]['room_id'] == room.room_id and bots[bot_id]['active']:
                     return True
 
         return False
