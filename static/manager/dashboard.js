@@ -42,7 +42,6 @@ socket.addEventListener('message', function (event) {
 function stopBot(successCallback) {
     $.get( "/manage/" + botID + "/stop", function( data ) {
         if(data.success) {
-            successCallback();
             new Noty({
               text: "Successfully stopped bot.",
               timeout: 5000,
@@ -53,6 +52,8 @@ function stopBot(successCallback) {
             $("#stop").prop('disabled', true);
             $("#start").prop('disabled', false);
             $("#restart").prop('disabled', true);
+            
+            successCallback();
         } else {
             new Noty({
               text: "Could not stop. (is it running?)",
@@ -68,7 +69,6 @@ function stopBot(successCallback) {
 function startBot(successCallback) {
     $.get( "/manage/" + botID + "/start", function( data ) {
         if(data.success) {
-            successCallback();
             new Noty({
               text: "Successfully started bot.",
               timeout: 5000,
@@ -80,6 +80,8 @@ function startBot(successCallback) {
             $("#start").prop('disabled', true);
             $("#stop").prop('disabled', false);
             $("#restart").prop('disabled', false);
+
+            successCallback();
         } else {
             new Noty({
               text: "Could not start bot. (is it already running?)",

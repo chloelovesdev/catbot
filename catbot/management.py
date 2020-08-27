@@ -134,12 +134,10 @@ class ManagementServer:
         logger.info("User %s requesting manage dashboard for %s", request_ip(request), bot_id)
         self.check_valid_bot(bot_id)
 
-        running = bot_id in self.client.processes
-
         return {
             "bot_id_json": json.dumps(bot_id),
             "bot_id": bot_id,
-            "running": running
+            "running": bot_id in self.client.processes
         }
 
     async def manage_output_websocket(self, request):

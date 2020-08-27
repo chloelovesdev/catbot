@@ -5,6 +5,7 @@ var factoidCommandToMode = {
     "python": "ace/mode/python",
     "java": "ace/mode/java",
     "js": "ace/mode/javascript",
+    "php": "ace/mode/php",
     "html": "ace/mode/html"
 };
 
