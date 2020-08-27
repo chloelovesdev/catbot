@@ -11,7 +11,8 @@ class Sandbox(module.Module):
         return [
             "python",
             "java",
-            "js"
+            "js",
+            "php"
         ]
     
     def __reply_sandbox(self, event, sandbox):
@@ -40,6 +41,32 @@ class Sandbox(module.Module):
                 "memory": 64, # MB
                 "user": "sandbox",
                 "memory_swap": 64, # MB
+                "networking_disabled": False,
+                "cpu_quota": 60, # seconds
+                "processes": 5,
+                "ulimits": {
+                    "cpu": 20, # seconds
+                    "fsize": 10 # MB
+                }
+            }
+        )
+
+        self.__reply_sandbox(event, sandbox)
+
+    @module.command("php", help="PHP sandboxed with docker.")
+    async def on_cmd_php(self, event):
+        sandbox = await self.manager.run(
+            image='catbot/php:cli-alpine',
+            command="php main.php",
+            files=[{
+                "name": "main.php",
+                "content": event.body.encode("utf-8")
+            }],
+            stdin=event.stdin_data,
+            limits={
+                "memory": 128, # MB
+                "user": "sandbox",
+                "memory_swap": 128, # MB
                 "networking_disabled": False,
                 "cpu_quota": 60, # seconds
                 "processes": 5,

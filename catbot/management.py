@@ -132,6 +132,8 @@ class ManagementServer:
     async def manage_dashboard(self, request):
         bot_id = request.match_info["bot_id"]
         logger.info("User %s requesting manage dashboard for %s", request_ip(request), bot_id)
+        self.check_valid_bot(bot_id)
+
         running = bot_id in self.client.processes
 
         return {
@@ -143,6 +145,7 @@ class ManagementServer:
     async def manage_output_websocket(self, request):
         bot_id = request.match_info["bot_id"]
         logger.info("Creating WebSocket for bot %s ip %s", bot_id, request_ip(request))
+        self.check_valid_bot(bot_id)
 
         ws = web.WebSocketResponse()
         await ws.prepare(request)
@@ -170,6 +173,7 @@ class ManagementServer:
     async def manage_stop(self, request):
         bot_id = request.match_info["bot_id"]
         logger.info("%s requested to stop %s", request_ip(request), bot_id)
+        self.check_valid_bot(bot_id)
         success = False
 
         if bot_id in self.client.processes:
@@ -188,6 +192,7 @@ class ManagementServer:
     async def manage_start(self, request):
         bot_id = request.match_info["bot_id"]
         logger.info("%s requested to start %s", request_ip(request), bot_id)
+        self.check_valid_bot(bot_id)
 
         success = True
         if bot_id in self.client.processes:
@@ -231,6 +236,10 @@ class ManagementServer:
                 result += [potential_module]
                 
         return result
+
+    def check_valid_bot(self, bot_id):
+        if not bot_id in self.client.bot_config.bots:
+            raise web.HTTPNotFound()
     
     def save_config(self, bot_id, config):
         config_as_json = json.dumps(config.to_dict(), indent=4)
@@ -244,6 +253,7 @@ class ManagementServer:
     async def manage_modules(self, request):
         bot_id = request.match_info["bot_id"]
         logger.info("User %s requesting module management for %s", request_ip(request), bot_id)
+        self.check_valid_bot(bot_id)
 
         bot_config = self.get_config_for_bot(bot_id)
         if bot_config == None:
@@ -273,6 +283,7 @@ class ManagementServer:
     async def manage_modules_update(self, request):
         bot_id = request.match_info["bot_id"]
         post_data = await request.post()
+        self.check_valid_bot(bot_id)
 
         bot_config = self.get_config_for_bot(bot_id)
 
@@ -293,6 +304,7 @@ class ManagementServer:
     async def manage_trust(self, request):
         bot_id = request.match_info["bot_id"]
         logger.info("User %s requesting trusted devices for %s", request_ip(request), bot_id)
+        self.check_valid_bot(bot_id)
 
         user_with_devices = {}
         devices_path = self.get_bot_devices_path(bot_id)
@@ -314,6 +326,7 @@ class ManagementServer:
     async def manage_trust_update(self, request):
         bot_id = request.match_info["bot_id"]
         post_data = await request.post()
+        self.check_valid_bot(bot_id)
 
         bot_config = self.get_config_for_bot(bot_id)
 
@@ -347,6 +360,7 @@ class ManagementServer:
     async def manage_auth(self, request):
         bot_id = request.match_info["bot_id"]
         logger.info("User %s requesting authentication settings for %s", request_ip(request), bot_id)
+        self.check_valid_bot(bot_id)
 
         main_config = self.client.bot_config
         bot_config = self.get_config_for_bot(bot_id)
@@ -376,6 +390,7 @@ class ManagementServer:
     async def manage_auth_update(self, request):
         bot_id = request.match_info["bot_id"]
         post_data = await request.post()
+        self.check_valid_bot(bot_id)
 
         main_config = self.client.bot_config
         bot_config = self.get_config_for_bot(bot_id)
@@ -390,6 +405,8 @@ class ManagementServer:
             bot_config.update("server.user_id", post_data["user_id"])
             bot_config.update("server.password", post_data["password"])
             self.save_config(bot_id, bot_config)
+            
+        logger.info("User %s updating authentication settings for %s", request_ip(request), bot_id)
 
         raise web.HTTPFound(location=f"/manage/{bot_id}/auth?saved=1")
     
@@ -397,6 +414,7 @@ class ManagementServer:
     async def manage_cron(self, request):
         bot_id = request.match_info["bot_id"]
         logger.info("User %s requesting scheduler for %s", request_ip(request), bot_id)
+        self.check_valid_bot(bot_id)
 
         bot_config = self.get_config_for_bot(bot_id)
         existing_tasks = bot_config.cron if bot_config.cron else []
@@ -420,6 +438,7 @@ class ManagementServer:
     async def manage_cron_update(self, request):
         bot_id = request.match_info["bot_id"]
         post_data = await request.post()
+        self.check_valid_bot(bot_id)
 
         bot_config = self.get_config_for_bot(bot_id)
         new_tasks = []
@@ -432,5 +451,6 @@ class ManagementServer:
 
         bot_config.update("cron", new_tasks)
         self.save_config(bot_id, bot_config)
+        logger.info("User %s updating scheduler settings for %s", request_ip(request), bot_id)
 
         raise web.HTTPFound(location=f"/manage/{bot_id}/cron?saved=1")
