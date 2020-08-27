@@ -354,12 +354,15 @@ class ManagementServer:
 
         homeserver = main_config.server.url
         user_id = main_config.server.user_id
-        password = "haha nice try"
+        password = main_config.server.password
 
         if not uses_defaults:
             homeserver = bot_config.server.url
             user_id = bot_config.server.user_id
             password = bot_config.server.password
+
+        if password == main_config.server.password:
+            password = "haha nice try"
 
         return {
             "bot_id": bot_id,

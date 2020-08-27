@@ -55,6 +55,12 @@ function saveCurrentFactoid(successCallback) {
     });
 }
 
+$("#command-input").keyup(function(event) {
+    if (event.keyCode === 13) {
+        $("#test").click();
+    }
+});
+
 $("#new-modal-save").click(function() {
     window.factoidName = $("#factoid_name").val();
     saveCurrentFactoid(function() {
