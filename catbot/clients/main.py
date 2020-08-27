@@ -20,6 +20,7 @@ from nio import (AsyncClient, ClientConfig, DevicesError, Event, InviteNameEvent
 from asyncio.exceptions import TimeoutError
 
 from catbot.clients import CommonClient
+from catbot.log import bash_color_codes
 
 from python_json_config.config_node import ConfigNode
 
@@ -60,7 +61,7 @@ class MainClient(CommonClient):
 
         if self.check_room_with_bot_exists(room):
             await self.send_text("bot already exists with room id and invite given(?)")
-            logger.warning("User %s attempted to setup bot where it already exists at.", event.state_key)
+            logger.warning("User %s attempted to setup bot where it already exists at.", event.sender)
             return
         else:
             logger.info("Creating a new task to spin up a new bot")
@@ -94,7 +95,7 @@ class MainClient(CommonClient):
 
     # read the process stdout and stderr concurrently always
     # demarcate with [BOT_ID]
-    async def __read_and_print_proc_output(self, bot_id, proc, std, std_to_read_from):
+    async def __read_and_print_proc_output(self, bot_id, proc, std_to_read_from):
         while True:
             line = await std_to_read_from.readline()
 
@@ -107,7 +108,7 @@ class MainClient(CommonClient):
                 except:
                     line = str(line)
 
-                print(f"[{bot_id}] {line}")
+                print(bash_color_codes()["MAGENTA"] + f"[{bot_id}] " + bash_color_codes()["RESET"] + line)
 
                 if not bot_id in self.last_x_messages.keys():
                     self.last_x_messages[bot_id] = []
@@ -121,14 +122,16 @@ class MainClient(CommonClient):
                         for ws in self.management_server.open_sockets[bot_id]:
                             await ws.send_str(line)
 
-                if line.rstrip() == b"DEACTIVATEBOT":
-                    logger.info("Stopping stream %s with bot ID %s", std, bot_id)
-                    if std == "stdout":
+                if line.rstrip() == b"DEACTIVATEBOT" or line.rstrip() == "DEACTIVATEBOT":
+                    logger.warning("Bot deactivated. Stopping a stream for bot ID %s", bot_id)
+                    if proc.returncode == None:
+                        proc.kill()
+                        logger.warning("Marking bot %s as inactive", bot_id)
                         self.bot_config.update(f"bots.{bot_id}.active", False) # bot is disabled
                         self.save_config()
                     break
 
-        logger.info("We have stopped listening to the %s stream for bot %s", std, bot_id)
+        logger.info("We have stopped listening an output stream for bot %s", bot_id)
 
     def setup_bot(self, bot_id: str, room: MatrixRoom = None):
         if bot_id == None and not room == None:
@@ -162,25 +165,28 @@ class MainClient(CommonClient):
             logger.error("No bot ID was specified when setting up a bot")
             raise Exception("None bot_id but no event parameters")
 
-        bots_as_dict = self.bot_config.bots.to_dict()
-        if bots_as_dict[bot_id]['active'] == False:
+        bots = self.bot_config.bots.to_dict()
+        if bots[bot_id]['active'] == False:
             logger.warning("Not setting up bot %s because it is inactive", bot_id)
             return None
 
         logger.info("Setting up bot with ID %s", bot_id)
 
         async def start_and_listen_proc():
-            proc = await asyncio.create_subprocess_exec(sys.executable, "-u", self.entry_point_file, bot_id,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE)
+            proc = await asyncio.create_subprocess_exec(sys.executable,
+                "-u",
+                self.entry_point_file,
+                bot_id,
+                "--management-url", self.bot_config.management_url,
+                stdout=asyncio.subprocess.PIPE, stderr=asyncio.subprocess.PIPE)
 
             self.processes[bot_id] = proc
 
             await asyncio.gather(
-                asyncio.ensure_future(self.__read_and_print_proc_output(bot_id, proc, "stdout", proc.stdout)),
-                asyncio.ensure_future(self.__read_and_print_proc_output(bot_id, proc, "stderr", proc.stderr))
+                asyncio.ensure_future(self.__read_and_print_proc_output(bot_id, proc, proc.stdout)),
+                asyncio.ensure_future(self.__read_and_print_proc_output(bot_id, proc, proc.stderr))
             )
-            
+
             # process finished
             del self.processes[bot_id]
 

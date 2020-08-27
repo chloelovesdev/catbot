@@ -16,6 +16,8 @@ from nio.log import logger_group
 from catbot.clients import (MainClient, CommonClient, ChannelClient)
 from catbot.management import ManagementServer
 
+from catbot.log import setup_logger
+
 logger = logging.getLogger(__name__)
 
 async def run_client(client: CommonClient) -> None:
@@ -62,7 +64,11 @@ async def main(entrypoint_file):
     parser = argparse.ArgumentParser(description='A matrix-nio bot with working E2EE.')
     parser.add_argument('bot_id', metavar='BOT_ID', type=str,
                        help='the bot id (use MAIN to start catbot in main mode)')
+    parser.add_argument('--management-url', dest='management_url', action='store', # TODO: seperate argparse instances for channel and main
+                        help='The URL exposed for the management server (not used for main bot) (example: http://localhost:8080)')
 
+    setup_logger()
+    
     args = parser.parse_args()
     logger.info("Arguments parsed successfully")
 
@@ -81,7 +87,8 @@ async def main(entrypoint_file):
 
         client = ChannelClient(
             global_store_path,
-            args.bot_id
+            args.bot_id,
+            args.management_url
         )
 
     try:

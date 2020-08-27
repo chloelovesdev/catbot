@@ -58,8 +58,6 @@ class TestingChannelClient(ChannelClient):
 
         super().__init__(global_store_path=global_store_path, bot_id="TESTING")
 
-        self.output = []
-
     async def upload(self,
         data_provider,
         content_type="application/octet-stream",

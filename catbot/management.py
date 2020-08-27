@@ -191,6 +191,12 @@ class ManagementServer:
         bot_id = request.match_info["bot_id"]
         logger.info("%s requested to start %s", request_ip(request), bot_id)
         self.check_valid_bot(bot_id)
+        
+        bots = self.client.bot_config.bots.to_dict()
+        if bots[bot_id]['active'] == False:
+            bots[bot_id]['active'] = True
+            self.client.bot_config.update("bots", bots)
+            self.client.save_config()
 
         success = True
         if bot_id in self.client.processes:
