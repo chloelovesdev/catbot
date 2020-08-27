@@ -50,7 +50,13 @@ class ChannelClient(CommonClient):
         if not self.has_setup:
             return
 
-        if self.bot_config.server.channel in self.rooms:
+        if not self.bot_config.server.channel in self.rooms:
+            return
+
+        room = self.rooms[self.bot_config.server.channel]
+
+        if room.encrypted:
+            # save a list of users and their devices to devices.json for the management server
             output = {}
 
             for user in self.rooms[self.bot_config.server.channel].users:
@@ -114,6 +120,7 @@ class ChannelClient(CommonClient):
 
         path_to_commands = os.path.realpath(os.path.join(os.path.dirname(__file__), "..", "modules"))
         logger.info("Found path to modules: %s", path_to_commands)
+        modules_loaded = 0
 
         for fname in os.listdir(path_to_commands):
             path = os.path.join(path_to_commands, fname)
@@ -142,13 +149,14 @@ class ChannelClient(CommonClient):
                 if class_name.lower() == command_name.lower().replace("_", "").replace("-", ""):
                     module = class_obj(self)
                     result[command_name] = module
+                    modules_loaded += 1
 
-        logger.info("Module loading complete.")
+        logger.info("%d modules loaded.", modules_loaded)
         return result
 
     async def membership_changed(self, state):
         if state == "leave" or state == "ban":
-            logger.error("Bot was kicked or banned from it's room.")
+            logger.error("Bot was kicked or banned from it's room. Reinvite to start up the bot again.")
             await self.delete_self()
 
     async def delete_self(self):

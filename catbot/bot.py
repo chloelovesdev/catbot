@@ -15,7 +15,6 @@ from nio.log import logger_group
 
 from catbot.clients import (MainClient, CommonClient, ChannelClient)
 from catbot.management import ManagementServer
-from catbot.dispatcher import CommandDispatcher
 
 logger = logging.getLogger(__name__)
 
@@ -71,14 +70,14 @@ async def main(entrypoint_file):
     client = None
 
     if main_mode:
-        logger.info("Creating main client with %s", args.bot_id)
+        logger.info("Creating main client with ID %s", args.bot_id)
 
         client = MainClient(
             global_store_path,
             entrypoint_file
         )
     else:
-        logger.info("Creating channel client with %s", args.bot_id)
+        logger.info("Creating channel client with ID %s", args.bot_id)
 
         client = ChannelClient(
             global_store_path,

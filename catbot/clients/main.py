@@ -132,10 +132,13 @@ class MainClient(CommonClient):
 
         # read the process stdout and stderr concurrently always
         # demarcate with [BOT_ID]
-        async def read_proc_output_task(proc, std, std_to_read_from, timeout):
-            async def read_and_print(std, std_to_read_from):
+        async def read_and_print_proc_output(proc, std, std_to_read_from):
+            while True:
                 line = await std_to_read_from.readline()
-                # line = line.decode("ascii").rstrip()
+
+                if not line:
+                    break
+
                 if line:
                     try:
                         line = line.decode("utf-8").rstrip()
@@ -143,7 +146,7 @@ class MainClient(CommonClient):
                         line = str(line)
 
                     print(f"[{bot_id}] {line}")
-                    
+
                     if not bot_id in self.last_x_messages.keys():
                         self.last_x_messages[bot_id] = []
 
@@ -161,17 +164,7 @@ class MainClient(CommonClient):
                         if std == "stdout":
                             self.bot_config.update(f"bots.{bot_id}.active", False) # bot is disabled
                             self.save_config()
-                        return True
-                    else:
-                        return False
-                else:
-                    return True
-
-            while True:
-                is_terminated = await read_and_print(std, std_to_read_from)
-
-                if is_terminated:
-                    break
+                        break
 
             logger.info("We have stopped listening to the %s stream for bot %s", std, bot_id)
 
@@ -182,8 +175,8 @@ class MainClient(CommonClient):
 
             self.processes[bot_id] = proc
             await asyncio.gather(
-                asyncio.ensure_future(read_proc_output_task(proc, "stdout", proc.stdout, 10)),
-                asyncio.ensure_future(read_proc_output_task(proc, "stderr", proc.stderr, 10))
+                asyncio.ensure_future(read_and_print_proc_output(proc, "stdout", proc.stdout)),
+                asyncio.ensure_future(read_and_print_proc_output(proc, "stderr", proc.stderr))
             )
             del self.processes[bot_id]
 
