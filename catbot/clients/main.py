@@ -16,8 +16,6 @@ from nio import (AsyncClient, ClientConfig, DevicesError, Event, InviteNameEvent
                  LocalProtocolError, MatrixRoom, MatrixUser, RoomMessageText, SyncResponse,
                  crypto, exceptions, RoomSendResponse)
 
-from asyncio.exceptions import TimeoutError
-
 from catbot.clients import CommonClient
 from catbot.log import bash_color_codes
 
