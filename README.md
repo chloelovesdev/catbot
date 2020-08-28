@@ -2,9 +2,12 @@
 
 ## Description
 
-*Another* [Matrix](https://matrix.org/) bot using the library [matrix-nio](https://github.com/poljar/matrix-nio).
+A [Matrix](https://matrix.org/) bot using the library [matrix-nio](https://github.com/poljar/matrix-nio).
+
 The bot relies on Docker for running sandboxed code, allowing users to write their own factoid commands which can perform any task required.
+
 The bot creates a new process every time it is invited to a room, where it can then be configured for that channel by a management interface.
+
 Factoid commands and module commands support input/output redirection between themselves. So, for example, it is possible to do the following:
 
 ![Simple redirection example](https://i.imgur.com/ZXFKrNX.png)
@@ -17,17 +20,17 @@ Factoids are also shared across all instances of the bot, although, in the futur
 2. Run untrusted code for PHP, Python, JavaScript and Java in Docker containers
 3. Create new process with an instance of the bot for each channel it is invited to
 4. Manage the instance of the bot from a management server
-⋅⋅* See realtime log output for the bot using WebSockets
-⋅⋅* Start/stop the room's instance of the bot.
-⋅⋅* Manage trusted devices for rooms with E2E (by device ID)
-⋅⋅* Schedule tasks (like cron) to run after every interval (every minute for example)
-⋅⋅* Change authentication settings for your channel's bot.
-⋅⋅* Enable/disable modules for a channel
+  * See realtime log output for the bot using WebSockets
+  * Start/stop the room's instance of the bot.
+  * Manage trusted devices for rooms with E2E (by device ID)
+  * Schedule tasks (like cron) to run after every interval (every minute for example)
+  * Change authentication settings for your channel's bot.
+  * Enable/disable modules for a channel
 5. Basic module system
-6. Web interface for factoid editing (with a )
-⋅⋅* Create, edit and save factoids
-⋅⋅* IDE powered by [ace from cloud9](https://ace.c9.io/)
-⋅⋅* [Test factoids with bot output](https://i.imgur.com/AsQdXdf.png)
+6. Web interface for factoid editing
+  * Create, edit and save factoids
+  * IDE powered by [ace from cloud9](https://ace.c9.io/)
+  * [Test factoids with bot output](https://i.imgur.com/AsQdXdf.png)
 
 ## Screenshots
 
@@ -126,3 +129,5 @@ Certain commands do not use the regular expressions and as such "eat" all the in
 Factoids contents also have arguments replaced into them using the standard bash way of numbered variables, i.e. $1 $2. Although, the input will be wrapped in quotes and escaped, for ease of use in code. Take this for example:
 
 ![Example](https://i.imgur.com/EQtWH18.png)
+
+Additionally, $@ will be replaced by a string containing all of the input to the factoid.
