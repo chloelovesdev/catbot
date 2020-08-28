@@ -37,6 +37,38 @@ Factoids are also shared across all instances of the bot, although, in the futur
 ![Factoid editor](https://i.imgur.com/h2wWQMt.png)
 ![Management dashboard](https://i.imgur.com/kchLAwC.png)
 
+## Factoids
+
+### Command indicators
+
+Factoids are currently stored in files under the "storage/factoids/" directory. Factoids usually start with one of the following command indicators which denote what is going to be run:
+```
+<python> or [python] - runs Python 3.7.9 code
+<js> or [js] - runs JavaScript using node.js
+<php> or [php] - run PHP code using latest cli version
+<java> or [java] - runs using OpenJDK 16 - *note factoid entry point class must have main and be named "Factoid"*
+<cmd>ping - runs any bot command, ping is used here as an example.
+```
+But any command from a module, or a factoid can be used in the <> or [] brackets and catbot will handle it. More languages will be added later.
+There are also various tags for factoids which just contain styling.
+```
+<html> - Will send to Matrix room using HTML formatting
+<markdown> - Will convert markdown to HTML and send to Matrix room
+```
+
+### Input redirection
+
+Every command is split using regular expressions by the Bash pipe delimiter "|". If the character is escaped (i.e. \|) then the pipe is ignored and the escape character is removed before the command is fully executed.
+Certain commands do not use the regular expressions and as such "eat" all the input. For example, this is used in !factoid set so that the pipes in the factoid content do not interfere with the creation/update of the factoid.
+
+### Bash-like args replacing
+
+Factoids contents also have arguments replaced into them using the standard bash way of numbered variables, i.e. $1 $2. Although, the input will be wrapped in quotes and escaped, for ease of use in code. Take this for example:
+
+![Example](https://i.imgur.com/EQtWH18.png)
+
+Additionally, $@ will be replaced by a string containing all of the input to the factoid.
+
 ## Modules and their commands
 
 All commands and factoids start with the **!** prefix. This will be configurable in future. Some of these commands are not runnable on their own and will require you to redirect input from another command or factoid to them.
@@ -99,35 +131,3 @@ state set <name> - sets the state to the *FIRST LINE* of the input and passes th
 ```
 strip - strips input
 ```
-
-## Factoids
-
-### Command indicators
-
-Factoids are currently stored in files under the "storage/factoids/" directory. Factoids usually start with one of the following command indicators which denote what is going to be run:
-```
-<python> or [python] - runs Python 3.7.9 code
-<js> or [js] - runs JavaScript using node.js
-<php> or [php] - run PHP code using latest cli version
-<java> or [java] - runs using OpenJDK 16 - *note factoid entry point class must have main and be named "Factoid"*
-<cmd>ping - runs any bot command, ping is used here as an example.
-```
-But any command from a module, or a factoid can be used in the <> or [] brackets and catbot will handle it. More languages will be added later.
-There are also various tags for factoids which just contain styling.
-```
-<html> - Will send to Matrix room using HTML formatting
-<markdown> - Will convert markdown to HTML and send to Matrix room
-```
-
-### Input redirection
-
-Every command is split using regular expressions by the Bash pipe delimiter "|". If the character is escaped (i.e. \|) then the pipe is ignored and the escape character is removed before the command is fully executed.
-Certain commands do not use the regular expressions and as such "eat" all the input. For example, this is used in !factoid get and !factoid set so that the pipes in the factoid content do not interfere with the creation/update of the factoid.
-
-### Bash-like args replacing
-
-Factoids contents also have arguments replaced into them using the standard bash way of numbered variables, i.e. $1 $2. Although, the input will be wrapped in quotes and escaped, for ease of use in code. Take this for example:
-
-![Example](https://i.imgur.com/EQtWH18.png)
-
-Additionally, $@ will be replaced by a string containing all of the input to the factoid.
