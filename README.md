@@ -1,6 +1,6 @@
 # catbot
 
-A [Matrix](https://matrix.org/) bot using the library [matrix-nio](https://github.com/poljar/matrix-nio) and [Docker](https://www.docker.com/) for running sandboxed code, allowing users to write their own factoid commands which can perform any task required. The bot creates a new process every time it is invited to a room, where it can then be configured for that channel by a management interface.
+A [Matrix](https://matrix.org/) bot using the library [matrix-nio](https://github.com/poljar/matrix-nio) and [Docker](https://www.docker.com/) (specifically [aiodocker](https://github.com/aio-libs/aiodocker)) for running sandboxed code, allowing users to write their own factoid commands which can perform any task required. The bot creates a new process every time it is invited to a room, where it can then be configured for that channel by a management interface.
 
 Factoid commands and module commands support input/output redirection between themselves. So, for example, it is possible to do the following:
 
