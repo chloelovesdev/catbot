@@ -69,6 +69,11 @@ Factoids contents also have arguments replaced into them using the standard bash
 
 Additionally, $@ will be replaced by a string containing all of the input to the factoid.
 
+## Installation
+
+Please note catbot is still under active development and things may change in future.
+[There is an installation guide for Debian 10 here.](/INSTALLATION.md)
+
 ## Modules and their commands
 
 All commands and factoids start with the **!** prefix. This will be configurable in future. Some of these commands are not runnable on their own and will require you to redirect input from another command or factoid to them.
