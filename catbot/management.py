@@ -66,7 +66,7 @@ class ManagementServer:
         logger.info("Attempting to start management server")
         self.runner = web.AppRunner(self.app)
         await self.runner.setup()
-        site = web.TCPSite(self.runner, '127.0.0.1', 8080)
+        site = web.TCPSite(self.runner, '0.0.0.0', 8080) #TODO: configurable port and bind address
         await site.start()
         
     async def stop(self):
