@@ -32,7 +32,7 @@ class ManagementServer:
         self.client = client
         self.global_store_path = self.client.global_store_path
 
-        self.app = web.Application()
+        self.app = web.Application(middlewares=[self.error_middleware])
         self.app.router.add_routes([
             web.get('/', self.index),
             web.get('/factoid/{name}', self.factoid),
@@ -60,8 +60,7 @@ class ManagementServer:
         self.factoids = FileBasedFactoidManager(self.global_store_path)
         self.open_sockets = {}
 
-        aiohttp_jinja2.setup(self.app,
-            loader=jinja2.FileSystemLoader(templates_path))
+        aiohttp_jinja2.setup(self.app, loader=jinja2.FileSystemLoader(templates_path))
 
     async def start(self):
         logger.info("Attempting to start management server")
@@ -73,6 +72,20 @@ class ManagementServer:
     async def stop(self):
         logger.info("Stopping management server")
         await self.runner.cleanup()
+
+    @web.middleware
+    async def error_middleware(self, request, handler):
+        try:
+            response = await handler(request)
+            if response.status != 404:
+                return response
+            message = response.message
+        except web.HTTPException as ex:
+            if ex.status != 404:
+                raise
+            message = ex.reason
+
+        return aiohttp_jinja2.render_template('404.html', request, {})
 
     @aiohttp_jinja2.template('factoids/index.html')
     async def index(self, request):

@@ -38,7 +38,7 @@
           <div class="sidebar-sticky">
             <ul class="nav flex-column">
               {% for factoid in factoids %}
-              <li class="nav-item">
+              <li class="nav-item {% if loop.index == 1 %}moz-mt-5{% endif %}">
                 <a class="nav-link" href="/factoid/{{ factoid }}">
                   <span data-feather="file-text"></span>
                   {{ factoid }}

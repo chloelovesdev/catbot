@@ -153,7 +153,7 @@ class ChannelClient(CommonClient):
             message_type="m.room.message",
             content = {
                 "msgtype": "m.text",
-                "body": f"You can now manage the bot at {self.management_url}/manage/{self.bot_id}\nSave or bookmark this link as you may need it to configure the bot for your channel.\nAlso, be careful when distributing this link.",
+                "body": f"You can now manage the bot at {self.management_url}/manage/{self.bot_id}\nSave or bookmark this link as you may need it to configure the bot for your channel.\nAlso, be careful when distributing this link. It is not currently password protected.",
             }
         )
 

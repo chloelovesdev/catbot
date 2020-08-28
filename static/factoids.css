@@ -208,3 +208,9 @@ body {
 .p-0 {
   padding: 0px;
 }
+
+@-moz-document url-prefix() {
+  .moz-mt-5 {
+    margin-top: 3rem !important;
+  }
+}

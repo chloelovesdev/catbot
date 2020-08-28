@@ -56,7 +56,7 @@ class TestingChannelClient(ChannelClient):
         config_path = os.path.join(store_path, "config.json")
         self.__create_testing_client_config(config_path)
 
-        super().__init__(global_store_path=global_store_path, bot_id="TESTING")
+        super().__init__(global_store_path, "TESTING", "http://testing")
 
     async def upload(self,
         data_provider,
