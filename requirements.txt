@@ -7,4 +7,5 @@ aiohttp_jinja2
 jinja2
 dataclasses
 pytimeparse
+dateutil
 aiofiles; python_version >= '3.5'
