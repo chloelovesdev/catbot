@@ -2,9 +2,9 @@ matrix-nio[e2e]
 aiohttp; python_version >= '3.5'
 markdown2
 python_json_config
-aiofiles
 aiodocker
 aiohttp_jinja2
 jinja2
 dataclasses
 pytimeparse
+aiofiles; python_version >= '3.5'
