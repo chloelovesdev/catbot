@@ -1,5 +1,3 @@
-import epicbox
-
 from catbot import module
 from catbot.sandbox.docker import DockerManager
 

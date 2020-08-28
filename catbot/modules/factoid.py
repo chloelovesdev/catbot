@@ -18,7 +18,7 @@ class Factoid(module.Module):
             event.reply("Incorrect usage! Use factoid get <name>")
             return
 
-        content = self.bot.get_factoid_content(event.body)
+        content = self.bot.factoids.get_content(event.body)
 
         if content:
             escaped_content = html.escape(content)
@@ -36,7 +36,7 @@ class Factoid(module.Module):
         name = body_split[0]
         content = body_split[1]
 
-        if self.bot.set_factoid_content(name, content):
+        if self.bot.factoids.set_content(name, content):
             event.reply(f"Factoid {name} set!")
         else:
             event.reply(f"Failed saving factoid {name}!")
