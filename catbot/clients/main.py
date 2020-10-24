@@ -60,10 +60,12 @@ class MainClient(CommonClient):
             await self.send_text("bot already exists with room id and invite given(?)")
             logger.warning("User %s attempted to setup bot where it already exists at.", event.sender)
             return
-        else:
+        elif self.bot_config.invite_join:
             logger.info("Creating a new task to spin up a new bot")
             loop = asyncio.get_event_loop()
             loop.create_task(self.setup_bot(None, room=room))
+        else:
+            logger.error("Cannot join room (inviting is disabled)")
 
     def create_bot_config(self, bot_id: str, room_id: str):
         logger.info("Creating bot config for bot %s and room %s", bot_id, room_id)

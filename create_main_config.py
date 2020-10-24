@@ -21,6 +21,7 @@ bot_config.add("server.device_name", "BOT")
 bot_config.add("server.channel", "!oJGvNtRRSfsLjUOqjv:loves.shitposting.chat")
 bot_config.add("server.password", "<PASSWORD>")
 
+bot_config.add("invite_join", False) # bot joins upon invite?
 bot_config.add("management_url", "http://localhost:8080")
 
 bot_config.add("trust", {"@chloe:loves.shitposting.chat": ["TJXGVHDQYT"]})
